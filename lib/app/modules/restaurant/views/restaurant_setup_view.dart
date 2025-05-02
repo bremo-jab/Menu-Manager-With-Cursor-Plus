@@ -7,6 +7,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:menu_manager/app/controllers/auth_controller.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:menu_manager/utils/snackbar_helper.dart';
 
 class RestaurantSetupView extends GetView<RestaurantController> {
   const RestaurantSetupView({super.key});
@@ -35,6 +36,27 @@ class RestaurantSetupView extends GetView<RestaurantController> {
               type: StepperType.vertical,
               currentStep: controller.currentStep.value,
               onStepContinue: () {
+                if (controller.currentStep.value == 0) {
+                  if (!controller.formKey.currentState!.validate()) return;
+
+                  if (controller.selectedRestaurantTypes.isEmpty) {
+                    showErrorSnackbar(
+                        'الرجاء اختيار نوع واحد على الأقل من أنواع المطعم');
+                    return;
+                  }
+
+                  if (controller.logoImage.value == null) {
+                    showErrorSnackbar('الرجاء اختيار صورة شعار المطعم');
+                    return;
+                  }
+
+                  if (controller.images.isEmpty) {
+                    showErrorSnackbar(
+                        'الرجاء اختيار صورة واحدة على الأقل من صور المطعم');
+                    return;
+                  }
+                }
+
                 if (controller.currentStep.value < 5) {
                   controller.currentStep.value++;
                 }
@@ -63,9 +85,43 @@ class RestaurantSetupView extends GetView<RestaurantController> {
                         const SizedBox(width: 12),
                       Expanded(
                         child: CustomButton(
-                          onPressed: controller.currentStep.value == 5
-                              ? () => controller.saveRestaurant()
-                              : () => details.onStepContinue?.call(),
+                          onPressed: () {
+                            if (controller.currentStep.value == 0) {
+                              if (controller.logoImage.value == null) {
+                                showErrorSnackbar(
+                                    'الرجاء اختيار صورة شعار المطعم');
+                                return;
+                              }
+
+                              if (controller.images.isEmpty) {
+                                showErrorSnackbar(
+                                    'الرجاء اختيار صورة واحدة على الأقل من صور المطعم');
+                                return;
+                              }
+                            }
+
+                            if (controller.currentStep.value == 1) {
+                              final name =
+                                  controller.nameController.text.trim();
+
+                              if (name.isEmpty) {
+                                showErrorSnackbar('الرجاء إدخال اسم المطعم');
+                                return;
+                              }
+
+                              if (controller.selectedRestaurantTypes.isEmpty) {
+                                showErrorSnackbar(
+                                    'الرجاء اختيار نوع واحد على الأقل من أنواع المطعم');
+                                return;
+                              }
+                            }
+
+                            if (controller.currentStep.value == 5) {
+                              controller.saveRestaurant();
+                            } else {
+                              controller.currentStep.value++;
+                            }
+                          },
                           text: controller.currentStep.value == 5
                               ? 'حفظ'
                               : 'التالي',
@@ -302,32 +358,37 @@ class RestaurantSetupView extends GetView<RestaurantController> {
                               }
                               return null;
                             },
-                            style: GoogleFonts.cairo(),
                           ),
-                          const Divider(height: 24),
-                          CustomTextField(
-                            controller: controller.typeController,
-                            label: 'نوع المطعم',
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'الرجاء إدخال نوع المطعم';
-                              }
-                              return null;
-                            },
-                            style: GoogleFonts.cairo(),
-                          ),
-                          const Divider(height: 24),
+                          Obx(() => Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('نوع المطعم',
+                                      style: GoogleFonts.cairo(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold)),
+                                  ...controller.restaurantTypes.map((type) {
+                                    return CheckboxListTile(
+                                      title: Text(type,
+                                          style: GoogleFonts.cairo()),
+                                      value: controller.selectedRestaurantTypes
+                                          .contains(type),
+                                      onChanged: (value) {
+                                        if (value == true) {
+                                          controller.selectedRestaurantTypes
+                                              .add(type);
+                                        } else {
+                                          controller.selectedRestaurantTypes
+                                              .remove(type);
+                                        }
+                                      },
+                                    );
+                                  }).toList(),
+                                ],
+                              )),
                           CustomTextField(
                             controller: controller.descriptionController,
-                            label: 'وصف المطعم',
+                            label: 'وصف المطعم (اختياري)',
                             maxLines: 3,
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'الرجاء إدخال وصف المطعم';
-                              }
-                              return null;
-                            },
-                            style: GoogleFonts.cairo(),
                           ),
                         ],
                       ),
@@ -405,17 +466,53 @@ class RestaurantSetupView extends GetView<RestaurantController> {
                               ),
                             ],
                           ),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(12),
-                            child: GoogleMap(
-                              initialCameraPosition: CameraPosition(
-                                target: controller.initialPosition,
-                                zoom: 15,
+                          child: Stack(
+                            children: [
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(12),
+                                child: GoogleMap(
+                                  initialCameraPosition: CameraPosition(
+                                    target: controller.initialPosition,
+                                    zoom: 15,
+                                  ),
+                                  onMapCreated:
+                                      (GoogleMapController mapController) {
+                                    controller.mapController = mapController;
+                                    controller.getCurrentLocation();
+                                  },
+                                  onTap: controller.onMapTap,
+                                  onCameraMove: controller.onCameraMove,
+                                  markers: controller.markers,
+                                ),
                               ),
-                              onMapCreated: controller.onMapCreated,
-                              onTap: controller.onMapTap,
-                              markers: controller.markers,
-                            ),
+                              Obx(() => controller.isMapMoved.value
+                                  ? Positioned(
+                                      bottom: 8,
+                                      right: 8,
+                                      child: Container(
+                                        decoration: BoxDecoration(
+                                          color: Colors.blueAccent,
+                                          shape: BoxShape.circle,
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: Colors.black
+                                                  .withOpacity(0.15),
+                                              blurRadius: 6,
+                                              offset: const Offset(0, 3),
+                                            ),
+                                          ],
+                                        ),
+                                        child: IconButton(
+                                          onPressed:
+                                              controller.getCurrentLocation,
+                                          icon: const Icon(Icons.my_location),
+                                          color: Colors.white,
+                                          iconSize: 22,
+                                        ),
+                                      ),
+                                    )
+                                  : const SizedBox.shrink()),
+                            ],
                           ),
                         ),
                       ],

@@ -13,18 +13,23 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:modal_bottom_sheet/modal_bottom_sheet.dart';
 import 'package:menu_manager/app/services/cloudinary_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:menu_manager/utils/snackbar_helper.dart';
 
 class RestaurantController extends GetxController {
   final RestaurantService _restaurantService = Get.find<RestaurantService>();
   final formKey = GlobalKey<FormState>();
   late final TextEditingController nameController;
-  late final TextEditingController typeController;
   late final TextEditingController descriptionController;
   late final TextEditingController cityController;
   late final TextEditingController addressController;
   late final TextEditingController phoneController;
   late final TextEditingController emailController;
   late final TextEditingController websiteController;
+  late final TextEditingController facebookController;
+  late final TextEditingController instagramController;
+  late final TextEditingController twitterController;
+  late final TextEditingController whatsappController;
   late final List<List<TextEditingController>> workingHoursControllers;
 
   final weekDays = [
@@ -60,18 +65,40 @@ class RestaurantController extends GetxController {
 
   late GoogleMapController mapController;
   final initialPosition = const LatLng(24.7136, 46.6753); // الرياض
+  LatLng currentLocation = const LatLng(0, 0); // موقع افتراضي
+  final isMapMoved = false.obs;
+
+  final restaurantTypes = [
+    'مشاوي',
+    'مأكولات بحرية',
+    'وجبات سريعة',
+    'مأكولات شرقية',
+    'مأكولات غربية',
+    'نباتي',
+    'وجبات صحية',
+    'حلويات',
+    'شعبي',
+    'بيتزا وباستا',
+    'ساندويشات',
+    'مقهى / كافيه',
+  ];
+
+  final selectedRestaurantTypes = <String>[].obs;
 
   @override
   void onInit() {
     super.onInit();
     nameController = TextEditingController();
-    typeController = TextEditingController();
     descriptionController = TextEditingController();
     cityController = TextEditingController();
     addressController = TextEditingController();
     phoneController = TextEditingController();
     emailController = TextEditingController();
     websiteController = TextEditingController();
+    facebookController = TextEditingController();
+    instagramController = TextEditingController();
+    twitterController = TextEditingController();
+    whatsappController = TextEditingController();
     workingHoursControllers = List.generate(
       7,
       (index) => [
@@ -86,6 +113,11 @@ class RestaurantController extends GetxController {
         position: initialPosition,
       ),
     );
+    ever(currentStep, (_) {
+      if (Get.isRegistered<GoogleMapController>()) {
+        Get.delete<GoogleMapController>();
+      }
+    });
   }
 
   Future<void> _requestLocationPermission() async {
@@ -102,13 +134,16 @@ class RestaurantController extends GetxController {
   @override
   void onClose() {
     nameController.dispose();
-    typeController.dispose();
     descriptionController.dispose();
     cityController.dispose();
     addressController.dispose();
     phoneController.dispose();
     emailController.dispose();
     websiteController.dispose();
+    facebookController.dispose();
+    instagramController.dispose();
+    twitterController.dispose();
+    whatsappController.dispose();
     for (var controllers in workingHoursControllers) {
       for (var controller in controllers) {
         controller.dispose();
@@ -384,6 +419,16 @@ class RestaurantController extends GetxController {
           FirebaseAuth.instance.currentUser?.uid ?? const Uuid().v4();
       final folderName = 'restaurants/$userId';
 
+      if (selectedRestaurantTypes.isEmpty) {
+        Get.snackbar(
+          'تنبيه',
+          'يرجى اختيار نوع واحد على الأقل من أنواع المطعم',
+          snackPosition: SnackPosition.BOTTOM,
+        );
+        isLoading.value = false;
+        return;
+      }
+
       final uploadedLogoUrl = logoImage.value != null
           ? await CloudinaryService.uploadImage(logoImage.value!, folderName)
           : null;
@@ -396,29 +441,24 @@ class RestaurantController extends GetxController {
 
       final restaurantData = {
         'name': nameController.text,
-        'type': typeController.text,
         'description': descriptionController.text,
-        'city': cityController.text,
+        'type': selectedRestaurantTypes,
         'address': addressController.text,
         'phone': phoneController.text,
         'email': emailController.text,
         'website': websiteController.text,
-        'workingHours': List.generate(
-          7,
-          (index) => {
-            'day': weekDays[index],
-            'open': workingHoursControllers[index][0].text,
-            'close': workingHoursControllers[index][1].text,
-          },
-        ),
-        'paymentMethods': selectedPaymentMethods,
-        'serviceOptions': selectedServiceOptions,
+        'facebook': facebookController.text,
+        'instagram': instagramController.text,
+        'twitter': twitterController.text,
+        'whatsapp': whatsappController.text,
+        'workingHours': _getWorkingHoursData(),
         'location': {
           'latitude': markers.first.position.latitude,
           'longitude': markers.first.position.longitude,
         },
         'logoUrl': uploadedLogoUrl,
         'imageUrls': uploadedImageUrls,
+        'userId': userId,
       };
 
       await _restaurantService.createRestaurant(
@@ -437,5 +477,42 @@ class RestaurantController extends GetxController {
     } finally {
       isLoading.value = false;
     }
+  }
+
+  List<Map<String, String>> _getWorkingHoursData() {
+    return List.generate(
+      7,
+      (index) => {
+        'day': weekDays[index],
+        'open': workingHoursControllers[index][0].text,
+        'close': workingHoursControllers[index][1].text,
+      },
+    );
+  }
+
+  Future<void> getCurrentLocation() async {
+    try {
+      Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+      currentLocation = LatLng(position.latitude, position.longitude);
+      markers.clear();
+      markers.add(
+        Marker(
+          markerId: const MarkerId('current'),
+          position: currentLocation,
+        ),
+      );
+      mapController.animateCamera(
+        CameraUpdate.newLatLngZoom(currentLocation, 15),
+      );
+      isMapMoved.value = false;
+    } catch (e) {
+      showErrorSnackbar('لا يمكن الوصول إلى موقعك الحالي');
+    }
+  }
+
+  void onCameraMove(CameraPosition position) {
+    isMapMoved.value = true;
   }
 }

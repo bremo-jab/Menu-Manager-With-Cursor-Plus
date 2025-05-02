@@ -6,7 +6,12 @@ import 'package:menu_manager/app/routes/app_pages.dart';
 
 class AuthService extends GetxService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  final GoogleSignIn _googleSignIn = GoogleSignIn();
+  final GoogleSignIn _googleSignIn = GoogleSignIn(
+    scopes: [
+      'email',
+      'profile',
+    ],
+  );
   final FacebookAuth _facebookAuth = FacebookAuth.instance;
 
   Rx<User?> user = Rx<User?>(null);
@@ -18,11 +23,15 @@ class AuthService extends GetxService {
     user.bindStream(_auth.authStateChanges());
   }
 
-  Future<UserCredential?> signInWithGoogle() async {
+  User? get currentUser => _auth.currentUser;
+
+  Future<UserCredential> signInWithGoogle() async {
     try {
       isLoading.value = true;
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
-      if (googleUser == null) return null;
+      if (googleUser == null) {
+        throw Exception('تم إلغاء تسجيل الدخول بواسطة Google');
+      }
 
       final GoogleSignInAuthentication googleAuth =
           await googleUser.authentication;
@@ -42,17 +51,19 @@ class AuthService extends GetxService {
         'حدث خطأ أثناء تسجيل الدخول باستخدام Google',
         snackPosition: SnackPosition.BOTTOM,
       );
-      return null;
+      throw e;
     } finally {
       isLoading.value = false;
     }
   }
 
-  Future<UserCredential?> signInWithFacebook() async {
+  Future<UserCredential> signInWithFacebook() async {
     try {
       isLoading.value = true;
       final LoginResult result = await _facebookAuth.login();
-      if (result.status != LoginStatus.success) return null;
+      if (result.status != LoginStatus.success) {
+        throw Exception('تم إلغاء تسجيل الدخول بواسطة Facebook');
+      }
 
       final AccessToken accessToken = result.accessToken!;
       final OAuthCredential credential = FacebookAuthProvider.credential(
@@ -70,7 +81,7 @@ class AuthService extends GetxService {
         'حدث خطأ أثناء تسجيل الدخول باستخدام Facebook',
         snackPosition: SnackPosition.BOTTOM,
       );
-      return null;
+      throw e;
     } finally {
       isLoading.value = false;
     }
@@ -78,9 +89,11 @@ class AuthService extends GetxService {
 
   Future<void> signOut() async {
     try {
-      await _auth.signOut();
-      await _googleSignIn.signOut();
-      await _facebookAuth.logOut();
+      await Future.wait([
+        _auth.signOut(),
+        _googleSignIn.signOut(),
+        _facebookAuth.logOut(),
+      ]);
       Get.offAllNamed(Routes.LOGIN);
     } catch (e) {
       Get.snackbar(

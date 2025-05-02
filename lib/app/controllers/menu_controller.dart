@@ -43,11 +43,13 @@ class MenuController extends GetxController {
           .loadCategories(_restaurantService.restaurant.value!.id);
       categories.value = _menuService.categories;
     } catch (e) {
-      Get.snackbar(
-        'خطأ',
-        'حدث خطأ أثناء جلب الفئات',
-        snackPosition: SnackPosition.BOTTOM,
-      );
+      Future.delayed(Duration.zero, () {
+        Get.snackbar(
+          'خطأ',
+          'حدث خطأ أثناء جلب الفئات',
+          snackPosition: SnackPosition.BOTTOM,
+        );
+      });
     } finally {
       isLoading.value = false;
     }
@@ -59,11 +61,13 @@ class MenuController extends GetxController {
       await _menuService.loadItems(_restaurantService.restaurant.value!.id);
       items.value = _menuService.items;
     } catch (e) {
-      Get.snackbar(
-        'خطأ',
-        'حدث خطأ أثناء جلب العناصر',
-        snackPosition: SnackPosition.BOTTOM,
-      );
+      Future.delayed(Duration.zero, () {
+        Get.snackbar(
+          'خطأ',
+          'حدث خطأ أثناء جلب العناصر',
+          snackPosition: SnackPosition.BOTTOM,
+        );
+      });
     } finally {
       isLoading.value = false;
     }

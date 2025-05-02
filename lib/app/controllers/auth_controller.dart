@@ -10,19 +10,21 @@ import 'package:device_info_plus/device_info_plus.dart';
 import 'package:menu_manager/app/models/user_model.dart';
 import 'package:menu_manager/app/models/device_info_model.dart';
 import 'package:uuid/uuid.dart';
+import 'package:menu_manager/app/services/auth_service.dart';
 
 class AuthController extends GetxController {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final GoogleSignIn _googleSignIn = GoogleSignIn(
-    scopes: [
-      'email',
-      'profile',
-    ],
-  );
+  final AuthService _authService = AuthService();
   final isLoading = false.obs;
+  final user = Rxn<User>();
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
   final formKey = GlobalKey<FormState>();
+
+  @override
+  void onInit() {
+    super.onInit();
+    user.value = _authService.currentUser;
+  }
 
   @override
   void onClose() {
@@ -93,7 +95,7 @@ class AuthController extends GetxController {
     if (user != null) {
       try {
         final userRef =
-            FirebaseFirestore.instance.collection('users').doc(user.email);
+            FirebaseFirestore.instance.collection('users').doc(user.uid);
         final userDoc = await userRef.get();
 
         if (!userDoc.exists) {
@@ -123,7 +125,7 @@ class AuthController extends GetxController {
 
         await FirebaseFirestore.instance
             .collection('users')
-            .doc(user.email)
+            .doc(user.uid)
             .collection('devices')
             .doc(docId)
             .set(deviceData);
@@ -139,97 +141,68 @@ class AuthController extends GetxController {
   Future<void> signInWithGoogle() async {
     try {
       isLoading.value = true;
+      final userCredential = await _authService.signInWithGoogle();
+      user.value = userCredential.user;
 
-      final googleUser = await _googleSignIn.signIn();
-      if (googleUser == null) {
-        isLoading.value = false;
-        return;
-      }
-
-      final email = googleUser.email;
-
-      // التحقق من وجود حساب بنفس البريد في Firestore
-      final userDoc =
-          await FirebaseFirestore.instance.collection('users').doc(email).get();
-
-      if (userDoc.exists) {
-        final existingProvider = userDoc.data()?['provider'] ?? '';
-
-        if (existingProvider != 'Google') {
-          await _showProviderDialog(email, existingProvider);
-          isLoading.value = false;
-          return;
-        }
-      }
-
-      final googleAuth = await googleUser.authentication;
-      final credential = GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
-        idToken: googleAuth.idToken,
-      );
-
-      final userCredential = await _auth.signInWithCredential(credential);
-      await _handleUserData(userCredential.user, 'Google');
-
-      // تخزين حالة تسجيل الدخول
+      // Store login state
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('isLoggedIn', true);
+      await prefs.setString('user_id', userCredential.user!.uid);
+
+      await checkUserStateAndRedirect();
     } catch (e) {
+      Get.snackbar(
+        'خطأ',
+        'حدث خطأ أثناء تسجيل الدخول',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    } finally {
       isLoading.value = false;
-      Get.snackbar('خطأ', 'فشل تسجيل الدخول');
     }
   }
 
   Future<void> signInWithFacebook() async {
     try {
       isLoading.value = true;
+      final userCredential = await _authService.signInWithFacebook();
+      user.value = userCredential.user;
 
-      final loginResult = await FacebookAuth.instance.login();
-      if (loginResult.status != LoginStatus.success) {
-        isLoading.value = false;
-        return;
-      }
-
-      final accessToken = loginResult.accessToken;
-      final userData = await FacebookAuth.instance.getUserData();
-      final email = userData['email'];
-
-      final userDoc =
-          await FirebaseFirestore.instance.collection('users').doc(email).get();
-
-      if (userDoc.exists) {
-        final existingProvider = userDoc.data()?['provider'] ?? '';
-
-        if (existingProvider != 'Facebook') {
-          await _showProviderDialog(email, existingProvider);
-          isLoading.value = false;
-          return;
-        }
-      }
-
-      final credential = FacebookAuthProvider.credential(accessToken!.token);
-      final userCredential = await _auth.signInWithCredential(credential);
-      await _handleUserData(userCredential.user, 'Facebook');
-
-      // تخزين حالة تسجيل الدخول
+      // Store login state
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('isLoggedIn', true);
+      await prefs.setString('user_id', userCredential.user!.uid);
+
+      await checkUserStateAndRedirect();
     } catch (e) {
+      Get.snackbar(
+        'خطأ',
+        'حدث خطأ أثناء تسجيل الدخول',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    } finally {
       isLoading.value = false;
-      Get.snackbar('خطأ', 'فشل تسجيل الدخول');
     }
   }
 
   Future<void> signOut() async {
     try {
-      await _auth.signOut();
+      isLoading.value = true;
+      await _authService.signOut();
+      user.value = null;
+
+      // Remove login state
       final prefs = await SharedPreferences.getInstance();
-      await prefs.remove('user_id');
-      await prefs.remove('isLoggedIn'); // حذف حالة تسجيل الدخول
-      isLoading.value = false;
+      await prefs.remove('isLoggedIn');
+
       Get.offAllNamed(Routes.LOGIN);
     } catch (e) {
-      Get.snackbar('خطأ', 'حدث خطأ أثناء تسجيل الخروج');
+      Get.snackbar(
+        'خطأ',
+        'حدث خطأ أثناء تسجيل الخروج',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    } finally {
+      isLoading.value = false;
     }
   }
 

@@ -16,7 +16,10 @@
         <!-- Google Maps API Key -->
         <meta-data
             android:name="com.google.android.geo.API_KEY"
-            android:value="AIzaSyBQoo4mtfJp3bE-B7KZm41pBDyWdFsqskQ"/>
+            android:value="AIzaSyCmOKp6Mt8JizbwjOfoKW9EDNfUsTs2T5c"/>
+        <meta-data
+            android:name="com.google.android.gms.maps.MAP_ID"
+            android:value="555142fb80a9b227"/>
             
         <!-- Facebook Configuration -->
         <meta-data

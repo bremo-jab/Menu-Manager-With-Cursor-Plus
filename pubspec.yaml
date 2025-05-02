@@ -89,6 +89,7 @@ dependencies:
   rxdart: ^0.27.7
   uuid: ^4.3.3
   lottie: ^2.7.0
+  modal_bottom_sheet: ^3.0.0-pre
 
 dev_dependencies:
   flutter_test:

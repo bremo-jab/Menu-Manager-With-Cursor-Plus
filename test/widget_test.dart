@@ -55,7 +55,13 @@ void main() {
   testWidgets('SplashPage should show loading indicator',
       (WidgetTester tester) async {
     // Build our app and trigger a frame
-    await tester.pumpWidget(const MyApp());
+    await tester.pumpWidget(
+      GetMaterialApp(
+        title: 'Menu Manager',
+        initialRoute: Routes.LOGIN,
+        getPages: AppPages.routes,
+      ),
+    );
     await tester.pump();
 
     // Verify that we see the loading indicator
@@ -64,7 +70,13 @@ void main() {
 
   testWidgets('App should use Cairo font', (WidgetTester tester) async {
     // Build our app and trigger a frame
-    await tester.pumpWidget(const MyApp());
+    await tester.pumpWidget(
+      GetMaterialApp(
+        title: 'Menu Manager',
+        initialRoute: Routes.LOGIN,
+        getPages: AppPages.routes,
+      ),
+    );
     await tester.pump();
 
     // Verify that the app uses Cairo font
@@ -75,7 +87,13 @@ void main() {
   testWidgets('App should use correct theme colors',
       (WidgetTester tester) async {
     // Build our app and trigger a frame
-    await tester.pumpWidget(const MyApp());
+    await tester.pumpWidget(
+      GetMaterialApp(
+        title: 'Menu Manager',
+        initialRoute: Routes.LOGIN,
+        getPages: AppPages.routes,
+      ),
+    );
     await tester.pump();
 
     // Verify gradient colors in the container
@@ -103,7 +121,13 @@ void main() {
       });
 
       // Build app and wait for redirect
-      await tester.pumpWidget(const MyApp());
+      await tester.pumpWidget(
+        GetMaterialApp(
+          title: 'Menu Manager',
+          initialRoute: Routes.LOGIN,
+          getPages: AppPages.routes,
+        ),
+      );
       await tester.pumpAndSettle();
 
       // Verify redirect to login
@@ -126,7 +150,13 @@ void main() {
       });
 
       // Build app and wait for redirect
-      await tester.pumpWidget(const MyApp());
+      await tester.pumpWidget(
+        GetMaterialApp(
+          title: 'Menu Manager',
+          initialRoute: Routes.LOGIN,
+          getPages: AppPages.routes,
+        ),
+      );
       await tester.pumpAndSettle();
 
       // Verify redirect to restaurant info
@@ -149,7 +179,13 @@ void main() {
       });
 
       // Build app and wait for redirect
-      await tester.pumpWidget(const MyApp());
+      await tester.pumpWidget(
+        GetMaterialApp(
+          title: 'Menu Manager',
+          initialRoute: Routes.LOGIN,
+          getPages: AppPages.routes,
+        ),
+      );
       await tester.pumpAndSettle();
 
       // Verify redirect to dashboard

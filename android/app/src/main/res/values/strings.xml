@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Menu Manager</string>
+    <string name="facebook_app_id">654470900894551</string>
+    <string name="fb_login_protocol_scheme">fb654470900894551</string>
+    <string name="facebook_client_token">2e27949293399429e8d4635522b910d7</string>
+</resources> 

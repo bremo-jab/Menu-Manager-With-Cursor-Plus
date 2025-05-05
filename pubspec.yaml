@@ -85,7 +85,7 @@ dependencies:
   injectable: ^2.3.2
   google_fonts: ^4.0.4
   google_maps_flutter: ^2.2.5
-  geocoding: ^2.2.2
+  geocoding: ^3.0.0
   network_info_plus: ^4.1.0+1
   rxdart: ^0.27.7
   uuid: ^4.0.0

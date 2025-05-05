@@ -8,6 +8,8 @@ import 'package:menu_manager/app/controllers/auth_controller.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:menu_manager/utils/snackbar_helper.dart';
+import 'package:flutter/gestures.dart';
+import 'package:flutter/foundation.dart';
 
 class RestaurantSetupView extends GetView<RestaurantController> {
   const RestaurantSetupView({super.key});
@@ -174,27 +176,27 @@ class RestaurantSetupView extends GetView<RestaurantController> {
                               ),
                             ),
                             const SizedBox(height: 16),
-                            Obx(() => GestureDetector(
-                                  onTap: controller.pickLogo,
-                                  child: CircleAvatar(
-                                    radius: 70,
-                                    backgroundColor: Colors.grey[200],
-                                    child: controller.logoImage.value != null
-                                        ? ClipOval(
-                                            child: Image.file(
-                                              controller.logoImage.value!,
-                                              width: 140,
-                                              height: 140,
-                                              fit: BoxFit.cover,
-                                            ),
-                                          )
-                                        : const Icon(
-                                            Icons.add_a_photo,
-                                            size: 40,
-                                            color: Colors.grey,
-                                          ),
-                                  ),
-                                )),
+                            GestureDetector(
+                              onTap: controller.pickLogo,
+                              child: CircleAvatar(
+                                radius: 70,
+                                backgroundColor: Colors.grey[200],
+                                child: controller.logoImage.value != null
+                                    ? ClipOval(
+                                        child: Image.file(
+                                          controller.logoImage.value!,
+                                          width: 140,
+                                          height: 140,
+                                          fit: BoxFit.cover,
+                                        ),
+                                      )
+                                    : const Icon(
+                                        Icons.add_a_photo,
+                                        size: 40,
+                                        color: Colors.grey,
+                                      ),
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -232,89 +234,83 @@ class RestaurantSetupView extends GetView<RestaurantController> {
                               ),
                             ),
                             const SizedBox(height: 16),
-                            Obx(() => SizedBox(
-                                  height: 120,
-                                  child: SingleChildScrollView(
-                                    scrollDirection: Axis.horizontal,
-                                    child: Row(
-                                      children: [
-                                        ...controller.images
-                                            .asMap()
-                                            .entries
-                                            .map(
-                                              (entry) => Padding(
-                                                padding: const EdgeInsets.only(
-                                                    left: 8),
-                                                child: Stack(
-                                                  children: [
-                                                    Container(
-                                                      width: 120,
-                                                      height: 120,
-                                                      decoration: BoxDecoration(
-                                                        borderRadius:
-                                                            BorderRadius
-                                                                .circular(12),
-                                                        image: DecorationImage(
-                                                          image: FileImage(
-                                                              entry.value),
-                                                          fit: BoxFit.cover,
-                                                        ),
-                                                      ),
+                            SizedBox(
+                              height: 120,
+                              child: SingleChildScrollView(
+                                scrollDirection: Axis.horizontal,
+                                child: Row(
+                                  children: [
+                                    ...controller.images.asMap().entries.map(
+                                          (entry) => Padding(
+                                            padding:
+                                                const EdgeInsets.only(left: 8),
+                                            child: Stack(
+                                              children: [
+                                                Container(
+                                                  width: 120,
+                                                  height: 120,
+                                                  decoration: BoxDecoration(
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            12),
+                                                    image: DecorationImage(
+                                                      image: FileImage(
+                                                          entry.value),
+                                                      fit: BoxFit.cover,
                                                     ),
-                                                    Positioned(
-                                                      top: 4,
-                                                      right: 4,
-                                                      child: GestureDetector(
-                                                        onTap: () => controller
-                                                            .removeImage(
-                                                                entry.key),
-                                                        child: Container(
-                                                          padding:
-                                                              const EdgeInsets
-                                                                  .all(4),
-                                                          decoration:
-                                                              const BoxDecoration(
-                                                            color: Colors.red,
-                                                            shape:
-                                                                BoxShape.circle,
-                                                          ),
-                                                          child: const Icon(
-                                                            Icons.close,
-                                                            size: 16,
-                                                            color: Colors.white,
-                                                          ),
-                                                        ),
-                                                      ),
-                                                    ),
-                                                  ],
+                                                  ),
                                                 ),
-                                              ),
-                                            ),
-                                        Padding(
-                                          padding:
-                                              const EdgeInsets.only(left: 8),
-                                          child: GestureDetector(
-                                            onTap: controller.pickImages,
-                                            child: Container(
-                                              width: 120,
-                                              height: 120,
-                                              decoration: BoxDecoration(
-                                                color: Colors.grey[200],
-                                                borderRadius:
-                                                    BorderRadius.circular(12),
-                                              ),
-                                              child: const Icon(
-                                                Icons.add_photo_alternate,
-                                                size: 40,
-                                                color: Colors.grey,
-                                              ),
+                                                Positioned(
+                                                  top: 4,
+                                                  right: 4,
+                                                  child: GestureDetector(
+                                                    onTap: () => controller
+                                                        .removeImage(entry.key),
+                                                    child: Container(
+                                                      padding:
+                                                          const EdgeInsets.all(
+                                                              4),
+                                                      decoration:
+                                                          const BoxDecoration(
+                                                        color: Colors.red,
+                                                        shape: BoxShape.circle,
+                                                      ),
+                                                      child: const Icon(
+                                                        Icons.close,
+                                                        size: 16,
+                                                        color: Colors.white,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
                                             ),
                                           ),
                                         ),
-                                      ],
+                                    Padding(
+                                      padding: const EdgeInsets.only(left: 8),
+                                      child: GestureDetector(
+                                        onTap: controller.pickImages,
+                                        child: Container(
+                                          width: 120,
+                                          height: 120,
+                                          decoration: BoxDecoration(
+                                            color: Colors.grey[200],
+                                            borderRadius:
+                                                BorderRadius.circular(12),
+                                          ),
+                                          child: const Icon(
+                                            Icons.add_photo_alternate,
+                                            size: 40,
+                                            color: Colors.grey,
+                                          ),
+                                        ),
+                                      ),
                                     ),
-                                  ),
-                                )),
+                                  ],
+                                ),
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -359,32 +355,31 @@ class RestaurantSetupView extends GetView<RestaurantController> {
                               return null;
                             },
                           ),
-                          Obx(() => Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text('نوع المطعم',
-                                      style: GoogleFonts.cairo(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.bold)),
-                                  ...controller.restaurantTypes.map((type) {
-                                    return CheckboxListTile(
-                                      title: Text(type,
-                                          style: GoogleFonts.cairo()),
-                                      value: controller.selectedRestaurantTypes
-                                          .contains(type),
-                                      onChanged: (value) {
-                                        if (value == true) {
-                                          controller.selectedRestaurantTypes
-                                              .add(type);
-                                        } else {
-                                          controller.selectedRestaurantTypes
-                                              .remove(type);
-                                        }
-                                      },
-                                    );
-                                  }).toList(),
-                                ],
-                              )),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('نوع المطعم',
+                                  style: GoogleFonts.cairo(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold)),
+                              ...controller.restaurantTypes.map((type) {
+                                return CheckboxListTile(
+                                  title: Text(type, style: GoogleFonts.cairo()),
+                                  value: controller.selectedRestaurantTypes
+                                      .contains(type),
+                                  onChanged: (value) {
+                                    if (value == true) {
+                                      controller.selectedRestaurantTypes
+                                          .add(type);
+                                    } else {
+                                      controller.selectedRestaurantTypes
+                                          .remove(type);
+                                    }
+                                  },
+                                );
+                              }).toList(),
+                            ],
+                          ),
                           CustomTextField(
                             controller: controller.descriptionController,
                             label: 'وصف المطعم (اختياري)',
@@ -421,28 +416,86 @@ class RestaurantSetupView extends GetView<RestaurantController> {
                     padding: const EdgeInsets.all(16),
                     child: Column(
                       children: [
-                        CustomTextField(
-                          controller: controller.cityController,
-                          label: 'المدينة',
+                        // City Dropdown
+                        DropdownButtonFormField<String>(
+                          value: controller.palestinianCities
+                                  .contains(controller.selectedCity.value)
+                              ? controller.selectedCity.value
+                              : null,
+                          decoration: InputDecoration(
+                            labelText: 'المدينة',
+                            labelStyle: GoogleFonts.cairo(),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 12,
+                            ),
+                          ),
+                          items: controller.palestinianCities.map((city) {
+                            return DropdownMenuItem(
+                              value: city,
+                              child: Text(
+                                city,
+                                style: GoogleFonts.cairo(),
+                              ),
+                            );
+                          }).toList(),
+                          onChanged: (value) {
+                            if (value != null) {
+                              controller.selectedCity.value = value;
+                              controller.cityController.text = value;
+                            }
+                          },
                           validator: (value) {
                             if (value == null || value.isEmpty) {
-                              return 'الرجاء إدخال المدينة';
+                              return 'الرجاء اختيار المدينة';
                             }
                             return null;
                           },
-                          style: GoogleFonts.cairo(),
                         ),
                         const Divider(height: 24),
-                        CustomTextField(
-                          controller: controller.addressController,
-                          label: 'العنوان',
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'الرجاء إدخال العنوان';
-                            }
-                            return null;
-                          },
-                          style: GoogleFonts.cairo(),
+                        // Address Field
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            TextFormField(
+                              controller: controller.addressController,
+                              decoration: InputDecoration(
+                                labelText: 'العنوان',
+                                labelStyle: GoogleFonts.cairo(),
+                                alignLabelWithHint: true,
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 12,
+                                ),
+                              ),
+                              style: GoogleFonts.cairo(),
+                              maxLines: null,
+                              keyboardType: TextInputType.multiline,
+                              textInputAction: TextInputAction.newline,
+                              onChanged: (_) =>
+                                  controller.isAddressManuallyEdited = true,
+                              validator: (value) {
+                                if (value == null || value.trim().isEmpty) {
+                                  return 'الرجاء إدخال العنوان';
+                                }
+                                return null;
+                              },
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'يرجى التأكد من دقة العنوان، بدون ذكر الدولة',
+                              style: GoogleFonts.cairo(
+                                fontSize: 12,
+                                color: Colors.grey,
+                              ),
+                            ),
+                          ],
                         ),
                         const SizedBox(height: 16),
                         Text(
@@ -454,7 +507,7 @@ class RestaurantSetupView extends GetView<RestaurantController> {
                         ),
                         const SizedBox(height: 8),
                         Container(
-                          height: 200,
+                          height: 300,
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(12),
                             boxShadow: [
@@ -483,31 +536,50 @@ class RestaurantSetupView extends GetView<RestaurantController> {
                                   onTap: controller.onMapTap,
                                   onCameraMove: controller.onCameraMove,
                                   markers: controller.markers,
+                                  myLocationEnabled: true,
+                                  myLocationButtonEnabled: false,
+                                  liteModeEnabled: false,
+                                  gestureRecognizers:
+                                      <Factory<OneSequenceGestureRecognizer>>{
+                                    Factory<OneSequenceGestureRecognizer>(
+                                        () => EagerGestureRecognizer()),
+                                  }.toSet(),
                                 ),
                               ),
                               Obx(() => controller.isMapMoved.value
                                   ? Positioned(
-                                      bottom: 8,
-                                      right: 8,
+                                      bottom: 16,
+                                      right: 16,
                                       child: Container(
                                         decoration: BoxDecoration(
-                                          color: Colors.blueAccent,
-                                          shape: BoxShape.circle,
+                                          color: Colors.blue,
+                                          borderRadius:
+                                              BorderRadius.circular(30),
                                           boxShadow: [
                                             BoxShadow(
-                                              color: Colors.black
-                                                  .withOpacity(0.15),
+                                              color:
+                                                  Colors.black.withOpacity(0.2),
                                               blurRadius: 6,
                                               offset: const Offset(0, 3),
                                             ),
                                           ],
                                         ),
-                                        child: IconButton(
-                                          onPressed:
-                                              controller.getCurrentLocation,
-                                          icon: const Icon(Icons.my_location),
-                                          color: Colors.white,
-                                          iconSize: 22,
+                                        child: Material(
+                                          color: Colors.transparent,
+                                          child: InkWell(
+                                            borderRadius:
+                                                BorderRadius.circular(30),
+                                            onTap:
+                                                controller.getCurrentLocation,
+                                            child: const Padding(
+                                              padding: EdgeInsets.all(12),
+                                              child: Icon(
+                                                Icons.my_location,
+                                                color: Colors.white,
+                                                size: 24,
+                                              ),
+                                            ),
+                                          ),
                                         ),
                                       ),
                                     )
@@ -690,24 +762,26 @@ class RestaurantSetupView extends GetView<RestaurantController> {
                           ),
                         ),
                         const SizedBox(height: 8),
-                        ...controller.paymentMethods.map((method) {
-                          return CheckboxListTile(
-                            title: Text(
-                              method,
-                              style: GoogleFonts.cairo(),
-                            ),
-                            value: controller.selectedPaymentMethods
-                                .contains(method),
-                            onChanged: (value) {
-                              if (value == true) {
-                                controller.selectedPaymentMethods.add(method);
-                              } else {
-                                controller.selectedPaymentMethods
-                                    .remove(method);
-                              }
-                            },
-                          );
-                        }),
+                        Column(
+                          children: controller.paymentMethods.map((method) {
+                            return CheckboxListTile(
+                              title: Text(
+                                method,
+                                style: GoogleFonts.cairo(),
+                              ),
+                              value: controller.selectedPaymentMethods
+                                  .contains(method),
+                              onChanged: (value) {
+                                if (value == true) {
+                                  controller.selectedPaymentMethods.add(method);
+                                } else {
+                                  controller.selectedPaymentMethods
+                                      .remove(method);
+                                }
+                              },
+                            );
+                          }).toList(),
+                        ),
                         const Divider(height: 24),
                         Text(
                           'خيارات الخدمة',
@@ -717,24 +791,26 @@ class RestaurantSetupView extends GetView<RestaurantController> {
                           ),
                         ),
                         const SizedBox(height: 8),
-                        ...controller.serviceOptions.map((option) {
-                          return CheckboxListTile(
-                            title: Text(
-                              option,
-                              style: GoogleFonts.cairo(),
-                            ),
-                            value: controller.selectedServiceOptions
-                                .contains(option),
-                            onChanged: (value) {
-                              if (value == true) {
-                                controller.selectedServiceOptions.add(option);
-                              } else {
-                                controller.selectedServiceOptions
-                                    .remove(option);
-                              }
-                            },
-                          );
-                        }),
+                        Column(
+                          children: controller.serviceOptions.map((option) {
+                            return CheckboxListTile(
+                              title: Text(
+                                option,
+                                style: GoogleFonts.cairo(),
+                              ),
+                              value: controller.selectedServiceOptions
+                                  .contains(option),
+                              onChanged: (value) {
+                                if (value == true) {
+                                  controller.selectedServiceOptions.add(option);
+                                } else {
+                                  controller.selectedServiceOptions
+                                      .remove(option);
+                                }
+                              },
+                            );
+                          }).toList(),
+                        ),
                       ],
                     ),
                   ),

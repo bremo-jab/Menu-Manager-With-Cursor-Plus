@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:convert';
 import 'package:get/get.dart';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -14,7 +15,9 @@ import 'package:modal_bottom_sheet/modal_bottom_sheet.dart';
 import 'package:menu_manager/app/services/cloudinary_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:geocoding/geocoding.dart';
 import 'package:menu_manager/utils/snackbar_helper.dart';
+import 'package:http/http.dart' as http;
 
 class RestaurantController extends GetxController {
   final RestaurantService _restaurantService = Get.find<RestaurantService>();
@@ -85,6 +88,33 @@ class RestaurantController extends GetxController {
 
   final selectedRestaurantTypes = <String>[].obs;
 
+  // New variables for location
+  final selectedCity = Rx<String?>(null);
+  final selectedLatitude = Rx<double?>(null);
+  final selectedLongitude = Rx<double?>(null);
+  final address = ''.obs;
+
+  // Palestinian cities list
+  final palestinianCities = [
+    'القدس',
+    'رام الله',
+    'نابلس',
+    'الخليل',
+    'بيت لحم',
+    'غزة',
+    'جنين',
+    'طولكرم',
+    'قلقيلية',
+    'أريحا',
+    'رفح',
+    'خان يونس',
+    'البيرة',
+    'طوباس',
+    'سلفيت',
+  ];
+
+  bool isAddressManuallyEdited = false;
+
   @override
   void onInit() {
     super.onInit();
@@ -106,6 +136,11 @@ class RestaurantController extends GetxController {
         TextEditingController(),
       ],
     );
+    // Set initial city value
+    if (palestinianCities.isNotEmpty) {
+      selectedCity.value = palestinianCities.first;
+      cityController.text = palestinianCities.first;
+    }
     _requestLocationPermission();
     markers.add(
       Marker(
@@ -159,7 +194,54 @@ class RestaurantController extends GetxController {
     mapController = controller;
   }
 
-  void onMapTap(LatLng position) {
+  Future<String?> getAddressFromCoordinates(LatLng position) async {
+    try {
+      final apiKey = 'fab44975327741cd8fef4a7ee5fee226';
+      final url = Uri.parse(
+        'https://api.geoapify.com/v1/geocode/reverse?lat=${position.latitude}&lon=${position.longitude}&lang=ar&apiKey=$apiKey',
+      );
+
+      final response = await http.get(url);
+      final data = json.decode(response.body);
+
+      if (response.statusCode != 200 ||
+          data['features'] == null ||
+          data['features'].isEmpty) {
+        print('Geoapify failed: ${data['message'] ?? 'No results'}');
+        return null;
+      }
+
+      final properties = data['features'][0]['properties'];
+      final formatted = properties['formatted'] as String;
+
+      selectedLatitude.value = position.latitude;
+      selectedLongitude.value = position.longitude;
+
+      if (formatted.toLowerCase().contains('unnamed') ||
+          formatted.toLowerCase().contains('road')) {
+        print('عنوان غير معروف');
+        return null;
+      }
+
+      addressController.text = formatted;
+
+      final cityCandidate =
+          properties['city'] ?? properties['county'] ?? properties['state'];
+
+      if (cityCandidate != null &&
+          palestinianCities.contains(cityCandidate.toString())) {
+        selectedCity.value = cityCandidate;
+        cityController.text = cityCandidate;
+      }
+
+      return formatted;
+    } catch (e) {
+      print('Exception in Geoapify reverse geocoding: $e');
+      return null;
+    }
+  }
+
+  void onMapTap(LatLng position) async {
     markers.clear();
     markers.add(
       Marker(
@@ -167,6 +249,16 @@ class RestaurantController extends GetxController {
         position: position,
       ),
     );
+
+    selectedLatitude.value = position.latitude;
+    selectedLongitude.value = position.longitude;
+
+    if (!isAddressManuallyEdited) {
+      final address = await getAddressFromCoordinates(position);
+      if (address != null && address.isNotEmpty) {
+        addressController.text = address;
+      }
+    }
   }
 
   Future<ImageSource?> _chooseImageSource() async {
@@ -444,6 +536,7 @@ class RestaurantController extends GetxController {
         'description': descriptionController.text,
         'type': selectedRestaurantTypes,
         'address': addressController.text,
+        'city': selectedCity.value,
         'phone': phoneController.text,
         'email': emailController.text,
         'website': websiteController.text,
@@ -453,8 +546,8 @@ class RestaurantController extends GetxController {
         'whatsapp': whatsappController.text,
         'workingHours': _getWorkingHoursData(),
         'location': {
-          'latitude': markers.first.position.latitude,
-          'longitude': markers.first.position.longitude,
+          'latitude': selectedLatitude.value,
+          'longitude': selectedLongitude.value,
         },
         'logoUrl': uploadedLogoUrl,
         'imageUrls': uploadedImageUrls,
@@ -469,11 +562,7 @@ class RestaurantController extends GetxController {
 
       Get.offAllNamed('/menu');
     } catch (e) {
-      Get.snackbar(
-        'خطأ',
-        'حدث خطأ أثناء حفظ بيانات المطعم',
-        snackPosition: SnackPosition.BOTTOM,
-      );
+      showErrorSnackbar('حدث خطأ أثناء حفظ بيانات المطعم');
     } finally {
       isLoading.value = false;
     }
@@ -507,6 +596,12 @@ class RestaurantController extends GetxController {
         CameraUpdate.newLatLngZoom(currentLocation, 15),
       );
       isMapMoved.value = false;
+
+      // Get address from OpenCage
+      final address = await getAddressFromCoordinates(currentLocation);
+      if (address != null && address.isNotEmpty) {
+        addressController.text = address;
+      }
     } catch (e) {
       showErrorSnackbar('لا يمكن الوصول إلى موقعك الحالي');
     }

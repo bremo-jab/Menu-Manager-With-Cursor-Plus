@@ -15,13 +15,13 @@ import 'package:modal_bottom_sheet/modal_bottom_sheet.dart';
 import 'package:menu_manager/app/services/cloudinary_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:geocoding/geocoding.dart';
 import 'package:menu_manager/utils/snackbar_helper.dart';
 import 'package:http/http.dart' as http;
 
 class RestaurantController extends GetxController {
   final RestaurantService _restaurantService = Get.find<RestaurantService>();
   final formKey = GlobalKey<FormState>();
+  final socialLinksFormKey = GlobalKey<FormState>();
   late final TextEditingController nameController;
   late final TextEditingController descriptionController;
   late final TextEditingController cityController;
@@ -65,6 +65,7 @@ class RestaurantController extends GetxController {
   final markers = <Marker>{}.obs;
   final selectedPaymentMethods = <String>[].obs;
   final selectedServiceOptions = <String>[].obs;
+  final wantsEmailUpdates = false.obs;
 
   late GoogleMapController mapController;
   final initialPosition = const LatLng(24.7136, 46.6753); // الرياض
@@ -118,6 +119,22 @@ class RestaurantController extends GetxController {
   @override
   void onInit() {
     super.onInit();
+    _initializeControllers();
+    _requestLocationPermission();
+    markers.add(
+      Marker(
+        markerId: const MarkerId('restaurant'),
+        position: initialPosition,
+      ),
+    );
+    ever(currentStep, (_) {
+      if (Get.isRegistered<GoogleMapController>()) {
+        Get.delete<GoogleMapController>();
+      }
+    });
+  }
+
+  void _initializeControllers() {
     nameController = TextEditingController();
     descriptionController = TextEditingController();
     cityController = TextEditingController();
@@ -136,23 +153,17 @@ class RestaurantController extends GetxController {
         TextEditingController(),
       ],
     );
+
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null && user.email != null) {
+      emailController.text = user.email!;
+    }
+
     // Set initial city value
     if (palestinianCities.isNotEmpty) {
       selectedCity.value = palestinianCities.first;
       cityController.text = palestinianCities.first;
     }
-    _requestLocationPermission();
-    markers.add(
-      Marker(
-        markerId: const MarkerId('restaurant'),
-        position: initialPosition,
-      ),
-    );
-    ever(currentStep, (_) {
-      if (Get.isRegistered<GoogleMapController>()) {
-        Get.delete<GoogleMapController>();
-      }
-    });
   }
 
   Future<void> _requestLocationPermission() async {
@@ -184,6 +195,9 @@ class RestaurantController extends GetxController {
         controller.dispose();
       }
     }
+    if (Get.isRegistered<GoogleMapController>()) {
+      mapController.dispose();
+    }
     super.onClose();
   }
 
@@ -194,54 +208,87 @@ class RestaurantController extends GetxController {
     mapController = controller;
   }
 
-  Future<String?> getAddressFromCoordinates(LatLng position) async {
-    try {
-      final apiKey = 'fab44975327741cd8fef4a7ee5fee226';
-      final url = Uri.parse(
-        'https://api.geoapify.com/v1/geocode/reverse?lat=${position.latitude}&lon=${position.longitude}&lang=ar&apiKey=$apiKey',
-      );
-
-      final response = await http.get(url);
+  Future<String> getAddressFromPhoton(double lat, double lon) async {
+    final url =
+        Uri.parse('https://photon.komoot.io/reverse?lat=$lat&lon=$lon&lang=ar');
+    final response = await http.get(url);
+    if (response.statusCode == 200) {
       final data = json.decode(response.body);
+      final features = data['features'];
+      if (features != null && features.isNotEmpty) {
+        final props = features[0]['properties'];
+        final street = props['street'] ?? '';
+        final suburb = props['suburb'] ?? '';
+        final city = props['city'] ?? '';
+        final name = props['name'] ?? '';
+        final addressParts = [street, suburb, city, name]
+            .where((part) => part.isNotEmpty)
+            .toList();
+        return addressParts.join('، ');
+      }
+    }
+    return '';
+  }
 
-      if (response.statusCode != 200 ||
-          data['features'] == null ||
-          data['features'].isEmpty) {
-        print('Geoapify failed: ${data['message'] ?? 'No results'}');
-        return null;
+  Future<String> getAddressFromNominatim(double lat, double lon) async {
+    final url = Uri.parse(
+        'https://nominatim.openstreetmap.org/reverse?lat=$lat&lon=$lon&format=json&accept-language=ar');
+    final headers = {
+      'User-Agent': 'menu-app/1.0 (barhom.development@gmail.com)'
+    };
+    final response = await http.get(url, headers: headers);
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      final address = data['address'];
+      if (address != null) {
+        final road = address['road'] ?? '';
+        final suburb = address['suburb'] ?? '';
+        final city = address['city'] ?? address['town'] ?? '';
+        final state = address['state'] ?? '';
+        final addressParts = [road, suburb, city, state]
+            .where((part) => part.isNotEmpty)
+            .toList();
+        return addressParts.join('، ');
+      }
+    }
+    return '';
+  }
+
+  Future<String> getAddress(double lat, double lon) async {
+    try {
+      final photonFuture = getAddressFromPhoton(lat, lon);
+      final nominatimFuture = getAddressFromNominatim(lat, lon);
+
+      final results = await Future.wait([photonFuture, nominatimFuture]);
+
+      final photonParts = results[0].split('، ').map((e) => e.trim()).toSet();
+      final nominatimParts =
+          results[1].split('، ').map((e) => e.trim()).toSet();
+
+      final mergedParts = <String>{
+        ...photonParts,
+        ...nominatimParts,
+      }.where((part) => part.isNotEmpty).toList();
+
+      final addressString = mergedParts.join('، ');
+
+      // تحديث المدينة تلقائيًا بناءً على العنوان
+      for (final city in palestinianCities) {
+        if (addressString.contains(city)) {
+          selectedCity.value = city;
+          cityController.text = city;
+          break;
+        }
       }
 
-      final properties = data['features'][0]['properties'];
-      final formatted = properties['formatted'] as String;
-
-      selectedLatitude.value = position.latitude;
-      selectedLongitude.value = position.longitude;
-
-      if (formatted.toLowerCase().contains('unnamed') ||
-          formatted.toLowerCase().contains('road')) {
-        print('عنوان غير معروف');
-        return null;
-      }
-
-      addressController.text = formatted;
-
-      final cityCandidate =
-          properties['city'] ?? properties['county'] ?? properties['state'];
-
-      if (cityCandidate != null &&
-          palestinianCities.contains(cityCandidate.toString())) {
-        selectedCity.value = cityCandidate;
-        cityController.text = cityCandidate;
-      }
-
-      return formatted;
+      return addressString;
     } catch (e) {
-      print('Exception in Geoapify reverse geocoding: $e');
-      return null;
+      print('Error merging address: $e');
+      return '';
     }
   }
 
-  void onMapTap(LatLng position) async {
+  Future<void> onMapTap(LatLng position) async {
     markers.clear();
     markers.add(
       Marker(
@@ -250,15 +297,13 @@ class RestaurantController extends GetxController {
       ),
     );
 
+    if (!isAddressManuallyEdited) {
+      final address = await getAddress(position.latitude, position.longitude);
+      addressController.text = address;
+    }
+
     selectedLatitude.value = position.latitude;
     selectedLongitude.value = position.longitude;
-
-    if (!isAddressManuallyEdited) {
-      final address = await getAddressFromCoordinates(position);
-      if (address != null && address.isNotEmpty) {
-        addressController.text = address;
-      }
-    }
   }
 
   Future<ImageSource?> _chooseImageSource() async {
@@ -552,6 +597,7 @@ class RestaurantController extends GetxController {
         'logoUrl': uploadedLogoUrl,
         'imageUrls': uploadedImageUrls,
         'userId': userId,
+        'wantsEmailUpdates': wantsEmailUpdates.value,
       };
 
       await _restaurantService.createRestaurant(
@@ -581,29 +627,38 @@ class RestaurantController extends GetxController {
 
   Future<void> getCurrentLocation() async {
     try {
-      Position position = await Geolocator.getCurrentPosition(
+      final position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
       );
-      currentLocation = LatLng(position.latitude, position.longitude);
+
+      final latLng = LatLng(position.latitude, position.longitude);
+      mapController.animateCamera(
+        CameraUpdate.newCameraPosition(
+          CameraPosition(
+            target: latLng,
+            zoom: 15,
+          ),
+        ),
+      );
+
       markers.clear();
       markers.add(
         Marker(
-          markerId: const MarkerId('current'),
-          position: currentLocation,
+          markerId: const MarkerId('restaurant'),
+          position: latLng,
         ),
       );
-      mapController.animateCamera(
-        CameraUpdate.newLatLngZoom(currentLocation, 15),
-      );
-      isMapMoved.value = false;
 
-      // Get address from OpenCage
-      final address = await getAddressFromCoordinates(currentLocation);
-      if (address != null && address.isNotEmpty) {
+      if (!isAddressManuallyEdited) {
+        final address = await getAddress(position.latitude, position.longitude);
         addressController.text = address;
       }
+
+      selectedLatitude.value = position.latitude;
+      selectedLongitude.value = position.longitude;
     } catch (e) {
-      showErrorSnackbar('لا يمكن الوصول إلى موقعك الحالي');
+      print('Error getting location: $e');
+      showErrorSnackbar('فشل في الحصول على الموقع الحالي');
     }
   }
 

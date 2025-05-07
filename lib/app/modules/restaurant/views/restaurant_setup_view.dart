@@ -10,9 +10,17 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:menu_manager/utils/snackbar_helper.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/foundation.dart';
+import 'package:menu_manager/app/widgets/phone_verification_widget.dart';
 
 class RestaurantSetupView extends GetView<RestaurantController> {
   const RestaurantSetupView({super.key});
+
+  bool isValidUrl(String url) {
+    final uri = Uri.tryParse(url.trim());
+    return uri != null &&
+        (uri.scheme == 'http' || uri.scheme == 'https') &&
+        uri.host.contains('.');
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -59,6 +67,11 @@ class RestaurantSetupView extends GetView<RestaurantController> {
                   }
                 }
 
+                if (controller.currentStep.value == 3) {
+                  if (!controller.socialLinksFormKey.currentState!.validate())
+                    return;
+                }
+
                 if (controller.currentStep.value < 5) {
                   controller.currentStep.value++;
                 }
@@ -88,6 +101,13 @@ class RestaurantSetupView extends GetView<RestaurantController> {
                       Expanded(
                         child: CustomButton(
                           onPressed: () {
+                            if (controller.currentStep.value == 3) {
+                              if (!controller.socialLinksFormKey.currentState!
+                                  .validate()) {
+                                return;
+                              }
+                            }
+
                             if (controller.currentStep.value == 0) {
                               if (controller.logoImage.value == null) {
                                 showErrorSnackbar(
@@ -615,47 +635,99 @@ class RestaurantSetupView extends GetView<RestaurantController> {
                       ],
                     ),
                     padding: const EdgeInsets.all(16),
-                    child: Column(
-                      children: [
-                        CustomTextField(
-                          controller: controller.phoneController,
-                          label: 'رقم الهاتف',
-                          keyboardType: TextInputType.phone,
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'الرجاء إدخال رقم الهاتف';
-                            }
-                            if (!GetUtils.isPhoneNumber(value)) {
-                              return 'الرجاء إدخال رقم هاتف صحيح';
-                            }
-                            return null;
-                          },
-                          style: GoogleFonts.cairo(),
-                        ),
-                        const Divider(height: 24),
-                        CustomTextField(
-                          controller: controller.emailController,
-                          label: 'البريد الإلكتروني',
-                          keyboardType: TextInputType.emailAddress,
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'الرجاء إدخال البريد الإلكتروني';
-                            }
-                            if (!GetUtils.isEmail(value)) {
-                              return 'الرجاء إدخال بريد إلكتروني صحيح';
-                            }
-                            return null;
-                          },
-                          style: GoogleFonts.cairo(),
-                        ),
-                        const Divider(height: 24),
-                        CustomTextField(
-                          controller: controller.websiteController,
-                          label: 'الموقع الإلكتروني (اختياري)',
-                          keyboardType: TextInputType.url,
-                          style: GoogleFonts.cairo(),
-                        ),
-                      ],
+                    child: Form(
+                      key: controller.socialLinksFormKey,
+                      child: Column(
+                        children: [
+                          PhoneVerificationWidget(
+                            phoneController: controller.phoneController,
+                          ),
+                          const Divider(height: 24),
+                          TextFormField(
+                            controller: controller.emailController,
+                            readOnly: true,
+                            decoration: InputDecoration(
+                              labelText: 'البريد الإلكتروني',
+                              labelStyle: GoogleFonts.cairo(),
+                              border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12)),
+                              contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 16, vertical: 12),
+                            ),
+                            style: GoogleFonts.cairo(),
+                          ),
+                          const SizedBox(height: 4),
+                          Obx(() => CheckboxListTile(
+                                title: Text(
+                                  'أوافق على تلقي التحديثات والأخبار عبر البريد الإلكتروني',
+                                  style: GoogleFonts.cairo(fontSize: 14),
+                                ),
+                                value: controller.wantsEmailUpdates.value,
+                                onChanged: (val) => controller
+                                    .wantsEmailUpdates.value = val ?? false,
+                              )),
+                          const Divider(height: 24),
+                          CustomTextField(
+                            controller: controller.facebookController,
+                            label: 'رابط فيسبوك (اختياري)',
+                            keyboardType: TextInputType.url,
+                            validator: (value) {
+                              if (value != null &&
+                                  value.isNotEmpty &&
+                                  !isValidUrl(value)) {
+                                return 'الرجاء إدخال رابط صحيح يبدأ بـ http أو https';
+                              }
+                              return null;
+                            },
+                            style: GoogleFonts.cairo(),
+                          ),
+                          const SizedBox(height: 12),
+                          CustomTextField(
+                            controller: controller.instagramController,
+                            label: 'رابط إنستغرام (اختياري)',
+                            keyboardType: TextInputType.url,
+                            validator: (value) {
+                              if (value != null &&
+                                  value.isNotEmpty &&
+                                  !isValidUrl(value)) {
+                                return 'الرجاء إدخال رابط صحيح يبدأ بـ http أو https';
+                              }
+                              return null;
+                            },
+                            style: GoogleFonts.cairo(),
+                          ),
+                          const SizedBox(height: 12),
+                          CustomTextField(
+                            controller: controller.twitterController,
+                            label: 'رابط تويتر (اختياري)',
+                            keyboardType: TextInputType.url,
+                            validator: (value) {
+                              if (value != null &&
+                                  value.isNotEmpty &&
+                                  !isValidUrl(value)) {
+                                return 'الرجاء إدخال رابط صحيح يبدأ بـ http أو https';
+                              }
+                              return null;
+                            },
+                            style: GoogleFonts.cairo(),
+                          ),
+                          const Divider(height: 24),
+                          CustomTextField(
+                            controller: controller.websiteController,
+                            label: 'الموقع الإلكتروني (اختياري)',
+                            keyboardType: TextInputType.url,
+                            validator: (value) {
+                              if (value != null &&
+                                  value.isNotEmpty &&
+                                  !isValidUrl(value)) {
+                                return 'الرجاء إدخال رابط صحيح يبدأ بـ http أو https';
+                              }
+                              return null;
+                            },
+                            style: GoogleFonts.cairo(),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                   isActive: controller.currentStep.value >= 3,

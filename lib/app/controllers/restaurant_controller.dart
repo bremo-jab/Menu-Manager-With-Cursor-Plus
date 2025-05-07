@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:menu_manager/app/data/models/restaurant_model.dart';
+import 'package:menu_manager/app/models/restaurant.dart';
+import 'package:menu_manager/app/models/working_day_model.dart';
 import 'package:menu_manager/app/services/restaurant_service.dart';
 import 'package:menu_manager/app/routes/app_pages.dart';
 import 'package:uuid/uuid.dart';
@@ -44,6 +46,9 @@ class RestaurantController extends GetxController {
     'الجمعة',
     'السبت',
   ];
+
+  final workingDays = <WorkingDayModel>[].obs;
+  final dayValidationErrors = <String, String>{}.obs;
 
   final paymentMethods = [
     'نقداً',
@@ -116,11 +121,16 @@ class RestaurantController extends GetxController {
 
   bool isAddressManuallyEdited = false;
 
+  // Working Hours
+  final workingHours = <TimeOfDay?>[].obs;
+  final closingHours = <TimeOfDay?>[].obs;
+
   @override
   void onInit() {
     super.onInit();
     _initializeControllers();
     _requestLocationPermission();
+    _initializeWorkingDays();
     markers.add(
       Marker(
         markerId: const MarkerId('restaurant'),
@@ -132,6 +142,9 @@ class RestaurantController extends GetxController {
         Get.delete<GoogleMapController>();
       }
     });
+    // Initialize working hours arrays with null values for each day
+    workingHours.value = List.generate(7, (_) => null);
+    closingHours.value = List.generate(7, (_) => null);
   }
 
   void _initializeControllers() {
@@ -164,6 +177,16 @@ class RestaurantController extends GetxController {
       selectedCity.value = palestinianCities.first;
       cityController.text = palestinianCities.first;
     }
+  }
+
+  void _initializeWorkingDays() {
+    workingDays.value = weekDays
+        .map((day) => WorkingDayModel(
+              name: day,
+              isOpen: false,
+              timeRanges: [],
+            ))
+        .toList();
   }
 
   Future<void> _requestLocationPermission() async {
@@ -552,77 +575,69 @@ class RestaurantController extends GetxController {
     isLoading.value = true;
 
     try {
-      final userId =
-          FirebaseAuth.instance.currentUser?.uid ?? const Uuid().v4();
-      final folderName = 'restaurants/$userId';
-
-      if (selectedRestaurantTypes.isEmpty) {
-        Get.snackbar(
-          'تنبيه',
-          'يرجى اختيار نوع واحد على الأقل من أنواع المطعم',
-          snackPosition: SnackPosition.BOTTOM,
-        );
-        isLoading.value = false;
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        Get.snackbar('خطأ', 'يجب تسجيل الدخول أولاً');
         return;
       }
 
-      final uploadedLogoUrl = logoImage.value != null
-          ? await CloudinaryService.uploadImage(logoImage.value!, folderName)
-          : null;
+      final restaurant = Restaurant(
+        id: '',
+        name: nameController.text,
+        description: descriptionController.text,
+        address: addressController.text,
+        phone: phoneController.text,
+        email: emailController.text,
+        website: websiteController.text,
+        instagram: instagramController.text,
+        facebook: facebookController.text,
+        twitter: twitterController.text,
+        workingHours: workingHours
+            .map((time) => time?.format(Get.context!) ?? '')
+            .toList(),
+        closingHours: closingHours
+            .map((time) => time?.format(Get.context!) ?? '')
+            .toList(),
+        ownerId: user.uid,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
 
-      final uploadedImageUrls = <String>[];
-      for (final image in images) {
-        final url = await CloudinaryService.uploadImage(image, folderName);
-        if (url != null) uploadedImageUrls.add(url);
-      }
-
-      final restaurantData = {
-        'name': nameController.text,
-        'description': descriptionController.text,
-        'type': selectedRestaurantTypes,
-        'address': addressController.text,
-        'city': selectedCity.value,
-        'phone': phoneController.text,
-        'email': emailController.text,
-        'website': websiteController.text,
-        'facebook': facebookController.text,
-        'instagram': instagramController.text,
-        'twitter': twitterController.text,
-        'whatsapp': whatsappController.text,
-        'workingHours': _getWorkingHoursData(),
-        'location': {
-          'latitude': selectedLatitude.value,
-          'longitude': selectedLongitude.value,
-        },
-        'logoUrl': uploadedLogoUrl,
-        'imageUrls': uploadedImageUrls,
-        'userId': userId,
-        'wantsEmailUpdates': wantsEmailUpdates.value,
-      };
-
+      final docId = const Uuid().v4();
       await _restaurantService.createRestaurant(
-        restaurantData,
+        restaurant.toMap(),
         logoImage.value,
         images,
       );
 
-      Get.offAllNamed('/menu');
+      await _restaurantService.updateRestaurant(
+        docId,
+        {
+          'name': nameController.text,
+          'description': descriptionController.text,
+          'address': addressController.text,
+          'phone': phoneController.text,
+          'email': emailController.text,
+          'website': websiteController.text,
+          'instagram': instagramController.text,
+          'facebook': facebookController.text,
+          'twitter': twitterController.text,
+          'workingHours': workingHours
+              .map((time) => time?.format(Get.context!) ?? '')
+              .toList(),
+          'closingHours': closingHours
+              .map((time) => time?.format(Get.context!) ?? '')
+              .toList(),
+        },
+      );
+
+      Get.snackbar('نجاح', 'تم حفظ معلومات المطعم بنجاح');
+      Get.offAllNamed('/home');
     } catch (e) {
-      showErrorSnackbar('حدث خطأ أثناء حفظ بيانات المطعم');
+      showErrorSnackbar('حدث خطأ أثناء حفظ معلومات المطعم');
     } finally {
       isLoading.value = false;
     }
-  }
-
-  List<Map<String, String>> _getWorkingHoursData() {
-    return List.generate(
-      7,
-      (index) => {
-        'day': weekDays[index],
-        'open': workingHoursControllers[index][0].text,
-        'close': workingHoursControllers[index][1].text,
-      },
-    );
   }
 
   Future<void> getCurrentLocation() async {
@@ -664,5 +679,45 @@ class RestaurantController extends GetxController {
 
   void onCameraMove(CameraPosition position) {
     isMapMoved.value = true;
+  }
+
+  bool validateWorkingHours() {
+    dayValidationErrors.clear();
+    bool isValid = true;
+
+    for (var i = 0; i < workingDays.length; i++) {
+      final day = workingDays[i];
+      String? error;
+
+      if (day.isOpen) {
+        if (day.timeRanges.isEmpty) {
+          error = 'يجب إضافة فترة عمل واحدة على الأقل';
+          isValid = false;
+        } else {
+          // التحقق من صحة كل فترة عمل
+          for (var j = 0; j < day.timeRanges.length; j++) {
+            final range = day.timeRanges[j];
+            if (range.end.hour < range.start.hour ||
+                (range.end.hour == range.start.hour &&
+                    range.end.minute <= range.start.minute)) {
+              error =
+                  'وقت النهاية يجب أن يكون بعد وقت البداية في الفترة ${j + 1}';
+              isValid = false;
+              break;
+            }
+          }
+        }
+      }
+
+      if (error != null) {
+        dayValidationErrors[day.name] = error;
+      }
+    }
+
+    return isValid;
+  }
+
+  String? getDayValidationError(String dayName) {
+    return dayValidationErrors[dayName];
   }
 }

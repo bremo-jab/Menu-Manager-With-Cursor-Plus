@@ -11,6 +11,7 @@ import 'package:menu_manager/utils/snackbar_helper.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/foundation.dart';
 import 'package:menu_manager/app/widgets/phone_verification_widget.dart';
+import 'package:menu_manager/app/models/working_day_model.dart';
 
 class RestaurantSetupView extends GetView<RestaurantController> {
   const RestaurantSetupView({super.key});
@@ -741,64 +742,465 @@ class RestaurantSetupView extends GetView<RestaurantController> {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  content: Container(
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).cardColor,
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.grey.withOpacity(0.1),
-                          spreadRadius: 1,
-                          blurRadius: 4,
-                          offset: const Offset(0, 2),
+                  content: Column(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 16),
+                        child: ElevatedButton.icon(
+                          onPressed: () {
+                            // البحث عن أول يوم مفتوح
+                            final firstOpenDayIndex = controller.workingDays
+                                .indexWhere((day) => day.isOpen);
+                            if (firstOpenDayIndex == -1) {
+                              showErrorSnackbar(
+                                  'الرجاء تفعيل يوم واحد على الأقل');
+                              return;
+                            }
+
+                            final firstOpenDay =
+                                controller.workingDays[firstOpenDayIndex];
+                            if (firstOpenDay.timeRanges.isEmpty) {
+                              showErrorSnackbar(
+                                  'الرجاء إضافة فترات عمل لليوم المفتوح');
+                              return;
+                            }
+
+                            // نسخ الأوقات لجميع الأيام المفتوحة
+                            for (var i = 0;
+                                i < controller.workingDays.length;
+                                i++) {
+                              if (i != firstOpenDayIndex &&
+                                  controller.workingDays[i].isOpen) {
+                                controller.workingDays[i] =
+                                    controller.workingDays[i].copyWith(
+                                  timeRanges: List<TimeRange>.from(
+                                      firstOpenDay.timeRanges),
+                                );
+                              }
+                            }
+
+                            Get.snackbar(
+                              'تم النسخ',
+                              'تم نسخ فترات العمل لجميع الأيام المفتوحة',
+                              snackPosition: SnackPosition.BOTTOM,
+                              backgroundColor: Colors.green,
+                              colorText: Colors.white,
+                              duration: const Duration(seconds: 2),
+                            );
+                          },
+                          icon: const Icon(Icons.copy),
+                          label: Text(
+                            'نسخ نفس الأوقات لجميع الأيام',
+                            style: GoogleFonts.cairo(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 24, vertical: 12),
+                            backgroundColor: Theme.of(context).primaryColor,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
                         ),
-                      ],
-                    ),
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      children: List.generate(7, (index) {
-                        final day = controller.weekDays[index];
-                        return Column(
-                          children: [
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    day,
-                                    style: GoogleFonts.cairo(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
+                      ),
+                      ListView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: controller.workingDays.length,
+                        itemBuilder: (context, index) {
+                          final day = controller.workingDays[index];
+                          return Card(
+                            margin: const EdgeInsets.only(bottom: 8),
+                            child: ExpansionTile(
+                              title: Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      day.name,
+                                      style: GoogleFonts.cairo(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                      ),
                                     ),
                                   ),
-                                ),
-                                Expanded(
-                                  child: CustomTextField(
-                                    controller: controller
-                                        .workingHoursControllers[index][0],
-                                    label: 'من',
-                                    keyboardType: TextInputType.number,
-                                    style: GoogleFonts.cairo(),
+                                  Switch(
+                                    value: day.isOpen,
+                                    onChanged: (value) {
+                                      final updatedDay =
+                                          day.copyWith(isOpen: value);
+                                      controller.workingDays[index] =
+                                          updatedDay;
+                                      controller.validateWorkingHours();
+                                    },
                                   ),
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: CustomTextField(
-                                    controller: controller
-                                        .workingHoursControllers[index][1],
-                                    label: 'إلى',
-                                    keyboardType: TextInputType.number,
-                                    style: GoogleFonts.cairo(),
+                                ],
+                              ),
+                              children: [
+                                if (day.isOpen) ...[
+                                  Obx(() {
+                                    final error = controller
+                                        .getDayValidationError(day.name);
+                                    if (error != null) {
+                                      return Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 16, vertical: 8),
+                                        child: Text(
+                                          error,
+                                          style: GoogleFonts.cairo(
+                                            color: Colors.red,
+                                            fontSize: 14,
+                                          ),
+                                        ),
+                                      );
+                                    }
+                                    return const SizedBox.shrink();
+                                  }),
+                                  ...day.timeRanges
+                                      .asMap()
+                                      .entries
+                                      .map((entry) {
+                                    final rangeIndex = entry.key;
+                                    final range = entry.value;
+                                    return LayoutBuilder(
+                                      builder: (context, constraints) {
+                                        final isSmallScreen =
+                                            constraints.maxWidth < 400;
+                                        return Padding(
+                                          padding: const EdgeInsets.all(8.0),
+                                          child: Wrap(
+                                            spacing: 8,
+                                            runSpacing: 8,
+                                            alignment:
+                                                WrapAlignment.spaceBetween,
+                                            children: [
+                                              SizedBox(
+                                                width: isSmallScreen
+                                                    ? constraints.maxWidth
+                                                    : constraints.maxWidth *
+                                                        0.4,
+                                                child: TextButton.icon(
+                                                  onPressed: () async {
+                                                    final time =
+                                                        await showTimePicker(
+                                                      context: context,
+                                                      initialTime: range.start,
+                                                      builder:
+                                                          (context, child) {
+                                                        return Theme(
+                                                          data:
+                                                              Theme.of(context)
+                                                                  .copyWith(
+                                                            timePickerTheme:
+                                                                TimePickerThemeData(
+                                                              backgroundColor:
+                                                                  Theme.of(
+                                                                          context)
+                                                                      .cardColor,
+                                                              hourMinuteShape:
+                                                                  RoundedRectangleBorder(
+                                                                borderRadius:
+                                                                    BorderRadius
+                                                                        .circular(
+                                                                            8),
+                                                                side:
+                                                                    BorderSide(
+                                                                  color: Theme.of(
+                                                                          context)
+                                                                      .primaryColor,
+                                                                  width: 1,
+                                                                ),
+                                                              ),
+                                                              dayPeriodShape:
+                                                                  RoundedRectangleBorder(
+                                                                borderRadius:
+                                                                    BorderRadius
+                                                                        .circular(
+                                                                            8),
+                                                                side:
+                                                                    BorderSide(
+                                                                  color: Theme.of(
+                                                                          context)
+                                                                      .primaryColor,
+                                                                  width: 1,
+                                                                ),
+                                                              ),
+                                                              dayPeriodColor:
+                                                                  Colors
+                                                                      .transparent,
+                                                              dayPeriodTextColor:
+                                                                  Theme.of(
+                                                                          context)
+                                                                      .primaryColor,
+                                                              dayPeriodBorderSide:
+                                                                  BorderSide(
+                                                                color: Theme.of(
+                                                                        context)
+                                                                    .primaryColor,
+                                                                width: 1,
+                                                              ),
+                                                            ),
+                                                            textButtonTheme:
+                                                                TextButtonThemeData(
+                                                              style: TextButton
+                                                                  .styleFrom(
+                                                                foregroundColor:
+                                                                    Theme.of(
+                                                                            context)
+                                                                        .primaryColor,
+                                                              ),
+                                                            ),
+                                                          ),
+                                                          child: child!,
+                                                        );
+                                                      },
+                                                    );
+                                                    if (time != null) {
+                                                      final updatedRange =
+                                                          TimeRange(
+                                                        start: time,
+                                                        end: range.end,
+                                                      );
+                                                      final updatedRanges =
+                                                          List<TimeRange>.from(
+                                                              day.timeRanges);
+                                                      updatedRanges[
+                                                              rangeIndex] =
+                                                          updatedRange;
+                                                      controller.workingDays[
+                                                          index] = day.copyWith(
+                                                        timeRanges:
+                                                            updatedRanges,
+                                                      );
+                                                      controller
+                                                          .validateWorkingHours();
+                                                    }
+                                                  },
+                                                  icon: const Icon(
+                                                      Icons.access_time),
+                                                  label: Text(
+                                                    'من: ${range.start.hour.toString().padLeft(2, '0')}:${range.start.minute.toString().padLeft(2, '0')}',
+                                                    style: GoogleFonts.cairo(),
+                                                  ),
+                                                ),
+                                              ),
+                                              SizedBox(
+                                                width: isSmallScreen
+                                                    ? constraints.maxWidth
+                                                    : constraints.maxWidth *
+                                                        0.4,
+                                                child: TextButton.icon(
+                                                  onPressed: () async {
+                                                    final time =
+                                                        await showTimePicker(
+                                                      context: context,
+                                                      initialTime: range.end,
+                                                      builder:
+                                                          (context, child) {
+                                                        return Theme(
+                                                          data:
+                                                              Theme.of(context)
+                                                                  .copyWith(
+                                                            timePickerTheme:
+                                                                TimePickerThemeData(
+                                                              backgroundColor:
+                                                                  Theme.of(
+                                                                          context)
+                                                                      .cardColor,
+                                                              hourMinuteShape:
+                                                                  RoundedRectangleBorder(
+                                                                borderRadius:
+                                                                    BorderRadius
+                                                                        .circular(
+                                                                            8),
+                                                                side:
+                                                                    BorderSide(
+                                                                  color: Theme.of(
+                                                                          context)
+                                                                      .primaryColor,
+                                                                  width: 1,
+                                                                ),
+                                                              ),
+                                                              dayPeriodShape:
+                                                                  RoundedRectangleBorder(
+                                                                borderRadius:
+                                                                    BorderRadius
+                                                                        .circular(
+                                                                            8),
+                                                                side:
+                                                                    BorderSide(
+                                                                  color: Theme.of(
+                                                                          context)
+                                                                      .primaryColor,
+                                                                  width: 1,
+                                                                ),
+                                                              ),
+                                                              dayPeriodColor:
+                                                                  Colors
+                                                                      .transparent,
+                                                              dayPeriodTextColor:
+                                                                  Theme.of(
+                                                                          context)
+                                                                      .primaryColor,
+                                                              dayPeriodBorderSide:
+                                                                  BorderSide(
+                                                                color: Theme.of(
+                                                                        context)
+                                                                    .primaryColor,
+                                                                width: 1,
+                                                              ),
+                                                            ),
+                                                            textButtonTheme:
+                                                                TextButtonThemeData(
+                                                              style: TextButton
+                                                                  .styleFrom(
+                                                                foregroundColor:
+                                                                    Theme.of(
+                                                                            context)
+                                                                        .primaryColor,
+                                                              ),
+                                                            ),
+                                                          ),
+                                                          child: child!,
+                                                        );
+                                                      },
+                                                    );
+                                                    if (time != null) {
+                                                      if (time.hour <
+                                                              range
+                                                                  .start.hour ||
+                                                          (time.hour ==
+                                                                  range.start
+                                                                      .hour &&
+                                                              time.minute <=
+                                                                  range.start
+                                                                      .minute)) {
+                                                        showErrorSnackbar(
+                                                            'وقت النهاية يجب أن يكون بعد وقت البداية');
+                                                        return;
+                                                      }
+                                                      final updatedRange =
+                                                          TimeRange(
+                                                        start: range.start,
+                                                        end: time,
+                                                      );
+                                                      final updatedRanges =
+                                                          List<TimeRange>.from(
+                                                              day.timeRanges);
+                                                      updatedRanges[
+                                                              rangeIndex] =
+                                                          updatedRange;
+                                                      controller.workingDays[
+                                                          index] = day.copyWith(
+                                                        timeRanges:
+                                                            updatedRanges,
+                                                      );
+                                                      controller
+                                                          .validateWorkingHours();
+                                                    }
+                                                  },
+                                                  icon: const Icon(
+                                                      Icons.access_time),
+                                                  label: Text(
+                                                    'إلى: ${range.end.hour.toString().padLeft(2, '0')}:${range.end.minute.toString().padLeft(2, '0')}',
+                                                    style: GoogleFonts.cairo(),
+                                                  ),
+                                                ),
+                                              ),
+                                              if (!isSmallScreen)
+                                                IconButton(
+                                                  icon: const Icon(Icons.delete,
+                                                      color: Colors.red),
+                                                  onPressed: () {
+                                                    final updatedRanges =
+                                                        List<TimeRange>.from(
+                                                            day.timeRanges);
+                                                    updatedRanges
+                                                        .removeAt(rangeIndex);
+                                                    controller.workingDays[
+                                                        index] = day.copyWith(
+                                                      timeRanges: updatedRanges,
+                                                    );
+                                                    controller
+                                                        .validateWorkingHours();
+                                                  },
+                                                ),
+                                              if (isSmallScreen)
+                                                SizedBox(
+                                                  width: constraints.maxWidth,
+                                                  child: TextButton.icon(
+                                                    onPressed: () {
+                                                      final updatedRanges =
+                                                          List<TimeRange>.from(
+                                                              day.timeRanges);
+                                                      updatedRanges
+                                                          .removeAt(rangeIndex);
+                                                      controller.workingDays[
+                                                          index] = day.copyWith(
+                                                        timeRanges:
+                                                            updatedRanges,
+                                                      );
+                                                      controller
+                                                          .validateWorkingHours();
+                                                    },
+                                                    icon: const Icon(
+                                                        Icons.delete,
+                                                        color: Colors.red),
+                                                    label: Text(
+                                                      'حذف الفترة',
+                                                      style: GoogleFonts.cairo(
+                                                        color: Colors.red,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                            ],
+                                          ),
+                                        );
+                                      },
+                                    );
+                                  }).toList(),
+                                  Padding(
+                                    padding: const EdgeInsets.all(8.0),
+                                    child: SizedBox(
+                                      width: double.infinity,
+                                      child: ElevatedButton.icon(
+                                        onPressed: () {
+                                          final now = TimeOfDay.now();
+                                          final updatedRanges =
+                                              List<TimeRange>.from(
+                                                  day.timeRanges);
+                                          updatedRanges.add(TimeRange(
+                                            start: now,
+                                            end: TimeOfDay(
+                                                hour: now.hour + 1,
+                                                minute: now.minute),
+                                          ));
+                                          controller.workingDays[index] =
+                                              day.copyWith(
+                                            timeRanges: updatedRanges,
+                                          );
+                                          controller.validateWorkingHours();
+                                        },
+                                        icon: const Icon(Icons.add),
+                                        label: Text(
+                                          'إضافة فترة عمل',
+                                          style: GoogleFonts.cairo(),
+                                        ),
+                                      ),
+                                    ),
                                   ),
-                                ),
+                                ],
                               ],
                             ),
-                            if (index < 6) const Divider(height: 24),
-                          ],
-                        );
-                      }),
-                    ),
+                          );
+                        },
+                      ),
+                    ],
                   ),
-                  isActive: controller.currentStep.value >= 4,
                 ),
                 // Step 6: Payment and Service Options
                 Step(

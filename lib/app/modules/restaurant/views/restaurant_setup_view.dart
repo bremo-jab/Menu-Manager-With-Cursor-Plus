@@ -12,6 +12,15 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/foundation.dart';
 import 'package:menu_manager/app/widgets/phone_verification_widget.dart';
 import 'package:menu_manager/app/models/working_day_model.dart';
+import 'package:reorderable_grid_view/reorderable_grid_view.dart';
+import 'package:menu_manager/app/widgets/restaurant_images_section.dart';
+import 'package:menu_manager/app/widgets/restaurant_name_field.dart';
+import 'package:menu_manager/app/widgets/restaurant_type_selector.dart';
+import 'package:menu_manager/app/widgets/city_selector_field.dart';
+import 'package:menu_manager/app/widgets/address_input_field.dart';
+import 'package:menu_manager/app/widgets/map_location_picker.dart';
+import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 
 class RestaurantSetupView extends GetView<RestaurantController> {
   const RestaurantSetupView({super.key});
@@ -101,7 +110,7 @@ class RestaurantSetupView extends GetView<RestaurantController> {
                         const SizedBox(width: 12),
                       Expanded(
                         child: CustomButton(
-                          onPressed: () {
+                          onPressed: () async {
                             if (controller.currentStep.value == 3) {
                               if (!controller.socialLinksFormKey.currentState!
                                   .validate()) {
@@ -171,172 +180,7 @@ class RestaurantSetupView extends GetView<RestaurantController> {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  content: Column(
-                    children: [
-                      Container(
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).cardColor,
-                          borderRadius: BorderRadius.circular(16),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.grey.withOpacity(0.1),
-                              spreadRadius: 1,
-                              blurRadius: 4,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          children: [
-                            Text(
-                              'شعار المطعم',
-                              style: GoogleFonts.cairo(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                            GestureDetector(
-                              onTap: controller.pickLogo,
-                              child: CircleAvatar(
-                                radius: 70,
-                                backgroundColor: Colors.grey[200],
-                                child: controller.logoImage.value != null
-                                    ? ClipOval(
-                                        child: Image.file(
-                                          controller.logoImage.value!,
-                                          width: 140,
-                                          height: 140,
-                                          fit: BoxFit.cover,
-                                        ),
-                                      )
-                                    : const Icon(
-                                        Icons.add_a_photo,
-                                        size: 40,
-                                        color: Colors.grey,
-                                      ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      Container(
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).cardColor,
-                          borderRadius: BorderRadius.circular(16),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.grey.withOpacity(0.1),
-                              spreadRadius: 1,
-                              blurRadius: 4,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'صور المطعم',
-                              style: GoogleFonts.cairo(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'مرر لليمين لعرض باقي الصور',
-                              style: GoogleFonts.cairo(
-                                fontSize: 14,
-                                color: Colors.grey[600],
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                            SizedBox(
-                              height: 120,
-                              child: SingleChildScrollView(
-                                scrollDirection: Axis.horizontal,
-                                child: Row(
-                                  children: [
-                                    ...controller.images.asMap().entries.map(
-                                          (entry) => Padding(
-                                            padding:
-                                                const EdgeInsets.only(left: 8),
-                                            child: Stack(
-                                              children: [
-                                                Container(
-                                                  width: 120,
-                                                  height: 120,
-                                                  decoration: BoxDecoration(
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                            12),
-                                                    image: DecorationImage(
-                                                      image: FileImage(
-                                                          entry.value),
-                                                      fit: BoxFit.cover,
-                                                    ),
-                                                  ),
-                                                ),
-                                                Positioned(
-                                                  top: 4,
-                                                  right: 4,
-                                                  child: GestureDetector(
-                                                    onTap: () => controller
-                                                        .removeImage(entry.key),
-                                                    child: Container(
-                                                      padding:
-                                                          const EdgeInsets.all(
-                                                              4),
-                                                      decoration:
-                                                          const BoxDecoration(
-                                                        color: Colors.red,
-                                                        shape: BoxShape.circle,
-                                                      ),
-                                                      child: const Icon(
-                                                        Icons.close,
-                                                        size: 16,
-                                                        color: Colors.white,
-                                                      ),
-                                                    ),
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                        ),
-                                    Padding(
-                                      padding: const EdgeInsets.only(left: 8),
-                                      child: GestureDetector(
-                                        onTap: controller.pickImages,
-                                        child: Container(
-                                          width: 120,
-                                          height: 120,
-                                          decoration: BoxDecoration(
-                                            color: Colors.grey[200],
-                                            borderRadius:
-                                                BorderRadius.circular(12),
-                                          ),
-                                          child: const Icon(
-                                            Icons.add_photo_alternate,
-                                            size: 40,
-                                            color: Colors.grey,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
+                  content: RestaurantImagesSection(controller: controller),
                   isActive: controller.currentStep.value >= 0,
                 ),
                 // Step 2: Restaurant Information
@@ -366,16 +210,8 @@ class RestaurantSetupView extends GetView<RestaurantController> {
                       key: controller.formKey,
                       child: Column(
                         children: [
-                          CustomTextField(
-                            controller: controller.nameController,
-                            label: 'اسم المطعم',
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'الرجاء إدخال اسم المطعم';
-                              }
-                              return null;
-                            },
-                          ),
+                          RestaurantNameField(
+                              controller: controller.nameController),
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
@@ -383,22 +219,11 @@ class RestaurantSetupView extends GetView<RestaurantController> {
                                   style: GoogleFonts.cairo(
                                       fontSize: 16,
                                       fontWeight: FontWeight.bold)),
-                              ...controller.restaurantTypes.map((type) {
-                                return CheckboxListTile(
-                                  title: Text(type, style: GoogleFonts.cairo()),
-                                  value: controller.selectedRestaurantTypes
-                                      .contains(type),
-                                  onChanged: (value) {
-                                    if (value == true) {
-                                      controller.selectedRestaurantTypes
-                                          .add(type);
-                                    } else {
-                                      controller.selectedRestaurantTypes
-                                          .remove(type);
-                                    }
-                                  },
-                                );
-                              }).toList(),
+                              RestaurantTypeSelector(
+                                selectedTypes:
+                                    controller.selectedRestaurantTypes,
+                                allTypes: controller.restaurantTypes,
+                              ),
                             ],
                           ),
                           CustomTextField(
@@ -437,176 +262,47 @@ class RestaurantSetupView extends GetView<RestaurantController> {
                     padding: const EdgeInsets.all(16),
                     child: Column(
                       children: [
-                        // City Dropdown
-                        DropdownButtonFormField<String>(
-                          value: controller.palestinianCities
-                                  .contains(controller.selectedCity.value)
-                              ? controller.selectedCity.value
-                              : null,
-                          decoration: InputDecoration(
-                            labelText: 'المدينة',
-                            labelStyle: GoogleFonts.cairo(),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 12,
-                            ),
-                          ),
-                          items: controller.palestinianCities.map((city) {
-                            return DropdownMenuItem(
-                              value: city,
-                              child: Text(
-                                city,
-                                style: GoogleFonts.cairo(),
-                              ),
-                            );
-                          }).toList(),
-                          onChanged: (value) {
-                            if (value != null) {
-                              controller.selectedCity.value = value;
-                              controller.cityController.text = value;
-                            }
-                          },
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'الرجاء اختيار المدينة';
-                            }
-                            return null;
-                          },
-                        ),
-                        const Divider(height: 24),
-                        // Address Field
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            TextFormField(
-                              controller: controller.addressController,
-                              decoration: InputDecoration(
-                                labelText: 'العنوان',
-                                labelStyle: GoogleFonts.cairo(),
-                                alignLabelWithHint: true,
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 12,
-                                ),
-                              ),
-                              style: GoogleFonts.cairo(),
-                              maxLines: null,
-                              keyboardType: TextInputType.multiline,
-                              textInputAction: TextInputAction.newline,
-                              onChanged: (_) =>
-                                  controller.isAddressManuallyEdited = true,
-                              validator: (value) {
-                                if (value == null || value.trim().isEmpty) {
-                                  return 'الرجاء إدخال العنوان';
-                                }
-                                return null;
-                              },
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'يرجى التأكد من دقة العنوان، بدون ذكر الدولة',
-                              style: GoogleFonts.cairo(
-                                fontSize: 12,
-                                color: Colors.grey,
-                              ),
-                            ),
-                          ],
+                        CitySelectorField(
+                          controller: controller.cityController,
+                          selectedCity: controller.selectedCity,
+                          cityList: controller.palestinianCities,
                         ),
                         const SizedBox(height: 16),
-                        Text(
-                          'الموقع الجغرافي',
-                          style: GoogleFonts.cairo(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
+                        AddressInputField(
+                          controller: controller.addressController,
+                          onRestore: () async {
+                            if (controller.selectedLatitude.value != null &&
+                                controller.selectedLongitude.value != null) {
+                              final newAddress = await controller.getAddress(
+                                controller.selectedLatitude.value!,
+                                controller.selectedLongitude.value!,
+                              );
+                              controller.addressController.text = newAddress;
+                              controller.isAddressManuallyEdited = false;
+                            }
+                          },
                         ),
-                        const SizedBox(height: 8),
-                        Container(
-                          height: 300,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(12),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.grey.withOpacity(0.2),
-                                spreadRadius: 1,
-                                blurRadius: 4,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                          child: Stack(
-                            children: [
-                              ClipRRect(
-                                borderRadius: BorderRadius.circular(12),
-                                child: GoogleMap(
-                                  initialCameraPosition: CameraPosition(
-                                    target: controller.initialPosition,
-                                    zoom: 15,
-                                  ),
-                                  onMapCreated:
-                                      (GoogleMapController mapController) {
-                                    controller.mapController = mapController;
-                                    controller.getCurrentLocation();
-                                  },
-                                  onTap: controller.onMapTap,
-                                  onCameraMove: controller.onCameraMove,
-                                  markers: controller.markers,
-                                  myLocationEnabled: true,
-                                  myLocationButtonEnabled: false,
-                                  liteModeEnabled: false,
-                                  gestureRecognizers:
-                                      <Factory<OneSequenceGestureRecognizer>>{
-                                    Factory<OneSequenceGestureRecognizer>(
-                                        () => EagerGestureRecognizer()),
-                                  }.toSet(),
-                                ),
-                              ),
-                              Obx(() => controller.isMapMoved.value
-                                  ? Positioned(
-                                      bottom: 16,
-                                      right: 16,
-                                      child: Container(
-                                        decoration: BoxDecoration(
-                                          color: Colors.blue,
-                                          borderRadius:
-                                              BorderRadius.circular(30),
-                                          boxShadow: [
-                                            BoxShadow(
-                                              color:
-                                                  Colors.black.withOpacity(0.2),
-                                              blurRadius: 6,
-                                              offset: const Offset(0, 3),
-                                            ),
-                                          ],
-                                        ),
-                                        child: Material(
-                                          color: Colors.transparent,
-                                          child: InkWell(
-                                            borderRadius:
-                                                BorderRadius.circular(30),
-                                            onTap:
-                                                controller.getCurrentLocation,
-                                            child: const Padding(
-                                              padding: EdgeInsets.all(12),
-                                              child: Icon(
-                                                Icons.my_location,
-                                                color: Colors.white,
-                                                size: 24,
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    )
-                                  : const SizedBox.shrink()),
-                            ],
-                          ),
+                        const SizedBox(height: 16),
+                        MapLocationPicker(
+                          markers: controller.markers,
+                          onTap: controller.onMapTap,
+                          onCameraMove: controller.onCameraMove,
+                          onConfirm: () {
+                            if (controller.selectedLatitude.value != null &&
+                                controller.selectedLongitude.value != null) {
+                              showSuccessSnackbar(
+                                  'تم', 'تم تأكيد موقع المطعم بنجاح');
+                            } else {
+                              showErrorSnackbar(
+                                  'الرجاء اختيار موقع على الخريطة أولاً');
+                            }
+                          },
+                          onGetCurrentLocation:
+                              controller.updateCurrentLocation,
+                          isMapMoved: controller.isMapMoved,
+                          lat: controller.selectedLatitude as RxDouble,
+                          lon: controller.selectedLongitude as RxDouble,
+                          onMapCreated: controller.onMapCreated,
                         ),
                       ],
                     ),

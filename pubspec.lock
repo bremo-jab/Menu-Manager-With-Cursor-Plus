@@ -894,10 +894,10 @@ packages:
     dependency: "direct main"
     description:
       name: google_fonts
-      sha256: "2776c66b3e97c6cdd58d1bd3281548b074b64f1fd5c8f82391f7456e38849567"
+      sha256: b1ac0fe2832c9cc95e5e88b57d627c5e68c223b9657f4b96e1487aa9098c7b82
       url: "https://pub.dev"
     source: hosted
-    version: "4.0.5"
+    version: "6.2.1"
   google_identity_services_web:
     dependency: transitive
     description:
@@ -1054,10 +1054,10 @@ packages:
     dependency: "direct main"
     description:
       name: image_picker
-      sha256: b6951e25b795d053a6ba03af5f710069c99349de9341af95155d52665cb4607c
+      sha256: "021834d9c0c3de46bf0fe40341fa07168407f694d9b2bb18d532dc1261867f7a"
       url: "https://pub.dev"
     source: hosted
-    version: "0.8.9"
+    version: "1.1.2"
   image_picker_android:
     dependency: transitive
     description:
@@ -1570,6 +1570,22 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "4.1.0"
+  reorderable_grid_view:
+    dependency: "direct main"
+    description:
+      name: reorderable_grid_view
+      sha256: e36c6229a97105a10c79e15ab4b9b14ee9f6c488574ff2be9e858c82af47cda6
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.2.8"
+  reorderables:
+    dependency: "direct main"
+    description:
+      name: reorderables
+      sha256: "92dd02c27b58f9fe9d467c24b49fafea458e4355fcea474abb17ba79a058275d"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.4.4"
   retrofit:
     dependency: "direct main"
     description:

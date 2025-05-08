@@ -19,6 +19,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:menu_manager/utils/snackbar_helper.dart';
 import 'package:http/http.dart' as http;
+import 'package:menu_manager/app/models/cloudinary_image.dart';
+import 'dart:async';
 
 class RestaurantController extends GetxController {
   final RestaurantService _restaurantService = Get.find<RestaurantService>();
@@ -67,12 +69,17 @@ class RestaurantController extends GetxController {
   final currentStep = 0.obs;
   final logoImage = Rx<File?>(null);
   final images = <File>[].obs;
+  final cloudinaryImages = <CloudinaryImage>[].obs;
+  final imageUrls = <String>[].obs;
+  final isUploadingImages = false.obs;
+  final uploadProgress = 0.0.obs;
   final markers = <Marker>{}.obs;
   final selectedPaymentMethods = <String>[].obs;
   final selectedServiceOptions = <String>[].obs;
   final wantsEmailUpdates = false.obs;
+  final isMapReady = false.obs;
 
-  late GoogleMapController mapController;
+  GoogleMapController? mapController;
   final initialPosition = const LatLng(24.7136, 46.6753); // الرياض
   LatLng currentLocation = const LatLng(0, 0); // موقع افتراضي
   final isMapMoved = false.obs;
@@ -95,9 +102,9 @@ class RestaurantController extends GetxController {
   final selectedRestaurantTypes = <String>[].obs;
 
   // New variables for location
-  final selectedCity = Rx<String?>(null);
-  final selectedLatitude = Rx<double?>(null);
-  final selectedLongitude = Rx<double?>(null);
+  final selectedCity = ''.obs;
+  final selectedLatitude = 0.0.obs;
+  final selectedLongitude = 0.0.obs;
   final address = ''.obs;
 
   // Palestinian cities list
@@ -124,6 +131,9 @@ class RestaurantController extends GetxController {
   // Working Hours
   final workingHours = <TimeOfDay?>[].obs;
   final closingHours = <TimeOfDay?>[].obs;
+
+  // إضافة قائمة جديدة لتخزين الصور المطلوب حذفها
+  final imagesToDelete = <String>[].obs;
 
   @override
   void onInit() {
@@ -219,16 +229,18 @@ class RestaurantController extends GetxController {
       }
     }
     if (Get.isRegistered<GoogleMapController>()) {
-      mapController.dispose();
+      mapController!.dispose();
     }
     super.onClose();
   }
 
   void onMapCreated(GoogleMapController controller) {
+    mapController = controller;
+    isMapReady.value = true;
+
     if (!Get.isRegistered<GoogleMapController>()) {
       Get.put(controller, permanent: true);
     }
-    mapController = controller;
   }
 
   Future<String> getAddressFromPhoton(double lat, double lon) async {
@@ -284,18 +296,19 @@ class RestaurantController extends GetxController {
 
       final results = await Future.wait([photonFuture, nominatimFuture]);
 
-      final photonParts = results[0].split('، ').map((e) => e.trim()).toSet();
+      final photonParts = results[0].split('، ').map((e) => e.trim()).toList();
+      final photonFirstPart = photonParts.isNotEmpty ? photonParts.first : '';
+
       final nominatimParts =
-          results[1].split('، ').map((e) => e.trim()).toSet();
+          results[1].split('، ').map((e) => e.trim()).toList();
+      final filteredNominatimParts =
+          nominatimParts.where((part) => part != photonFirstPart).toList();
 
-      final mergedParts = <String>{
-        ...photonParts,
-        ...nominatimParts,
-      }.where((part) => part.isNotEmpty).toList();
+      final merged = [photonFirstPart, ...filteredNominatimParts]
+          .where((part) => part.isNotEmpty)
+          .toList();
+      final addressString = merged.join('، ');
 
-      final addressString = mergedParts.join('، ');
-
-      // تحديث المدينة تلقائيًا بناءً على العنوان
       for (final city in palestinianCities) {
         if (addressString.contains(city)) {
           selectedCity.value = city;
@@ -317,6 +330,7 @@ class RestaurantController extends GetxController {
       Marker(
         markerId: const MarkerId('restaurant'),
         position: position,
+        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
       ),
     );
 
@@ -327,6 +341,15 @@ class RestaurantController extends GetxController {
 
     selectedLatitude.value = position.latitude;
     selectedLongitude.value = position.longitude;
+
+    Get.snackbar(
+      'الموقع',
+      'تم تحديد موقع المطعم بنجاح',
+      snackPosition: SnackPosition.BOTTOM,
+      backgroundColor: Colors.green,
+      colorText: Colors.white,
+      duration: const Duration(seconds: 2),
+    );
   }
 
   Future<ImageSource?> _chooseImageSource() async {
@@ -504,6 +527,13 @@ class RestaurantController extends GetxController {
       final XFile? image = await picker.pickImage(source: source);
       if (image != null) {
         logoImage.value = File(image.path);
+        Get.snackbar(
+          'تم التحديث',
+          'تم تحديث الشعار بنجاح',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.green,
+          colorText: Colors.white,
+        );
       }
     } else if (status.isPermanentlyDenied) {
       await _showPermissionDialog(
@@ -517,6 +547,53 @@ class RestaurantController extends GetxController {
         'لا يمكن تحميل صورة الشعار بدون إذن.',
         snackPosition: SnackPosition.BOTTOM,
       );
+    }
+  }
+
+  Future<void> deleteLogo() async {
+    if (logoImage.value == null) return;
+
+    final confirm = await Get.dialog<bool>(
+      AlertDialog(
+        title: const Text('تأكيد حذف الشعار'),
+        content: const Text('هل أنت متأكد أنك تريد حذف الشعار الحالي؟'),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(result: false),
+            child: const Text('إلغاء'),
+          ),
+          TextButton(
+            onPressed: () => Get.back(result: true),
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.red,
+            ),
+            child: const Text('حذف'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      logoImage.value = null;
+      Get.snackbar(
+        'تم الحذف',
+        'تم حذف الشعار بنجاح',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.green,
+        colorText: Colors.white,
+      );
+    }
+  }
+
+  Future<String> _uploadImageToCloudinary(File image, String subfolder) async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      final folderName = 'restaurants/${user?.uid}/$subfolder';
+      final response = await CloudinaryService.uploadImage(image, folderName);
+      return response?.url ?? '';
+    } catch (e) {
+      print('فشل رفع الصورة: $e');
+      return '';
     }
   }
 
@@ -538,12 +615,38 @@ class RestaurantController extends GetxController {
       if (source == ImageSource.camera) {
         final XFile? image = await picker.pickImage(source: source);
         if (image != null) {
-          images.add(File(image.path));
+          if (images.length >= 10) {
+            Get.snackbar(
+              'تنبيه',
+              'يمكنك إضافة 10 صور كحد أقصى',
+              snackPosition: SnackPosition.BOTTOM,
+              backgroundColor: Colors.orange,
+              colorText: Colors.white,
+            );
+            return;
+          }
+          final file = File(image.path);
+          images.add(file);
         }
       } else {
         final List<XFile> selectedImages = await picker.pickMultiImage();
         if (selectedImages.isNotEmpty) {
-          images.addAll(selectedImages.map((image) => File(image.path)));
+          final remainingSlots = 10 - images.length;
+          if (remainingSlots <= 0) {
+            Get.snackbar(
+              'تنبيه',
+              'يمكنك إضافة 10 صور كحد أقصى',
+              snackPosition: SnackPosition.BOTTOM,
+              backgroundColor: Colors.orange,
+              colorText: Colors.white,
+            );
+            return;
+          }
+
+          final imagesToAdd = selectedImages.take(remainingSlots).toList();
+          for (var image in imagesToAdd) {
+            images.add(File(image.path));
+          }
         }
       }
     } else if (status.isPermanentlyDenied) {
@@ -561,9 +664,98 @@ class RestaurantController extends GetxController {
     }
   }
 
+  String? _extractPublicIdFromUrl(String url) {
+    try {
+      final uri = Uri.parse(url);
+      final pathSegments = uri.pathSegments;
+      if (pathSegments.length >= 2) {
+        // تنسيق رابط Cloudinary: https://res.cloudinary.com/cloud_name/image/upload/v1234567890/folder/image.jpg
+        final uploadIndex = pathSegments.indexOf('upload');
+        if (uploadIndex != -1 && uploadIndex + 1 < pathSegments.length) {
+          // نأخذ كل الأجزاء بعد 'upload' ونحذف الامتداد
+          final publicId = pathSegments.sublist(uploadIndex + 1).join('/');
+          return publicId.replaceAll(RegExp(r'\.[^/.]+$'), '');
+        }
+      }
+      return null;
+    } catch (e) {
+      print('Error extracting public_id: $e');
+      return null;
+    }
+  }
+
+  Future<void> _deleteImageFromCloudinary(String url) async {
+    try {
+      final publicId = _extractPublicIdFromUrl(url);
+      if (publicId != null) {
+        await CloudinaryService.deleteImage(publicId);
+      }
+    } catch (e) {
+      print('Error deleting image from Cloudinary: $e');
+      rethrow;
+    }
+  }
+
   void removeImage(int index) {
     if (index >= 0 && index < images.length) {
-      images.removeAt(index);
+      Get.dialog<bool>(
+        AlertDialog(
+          title: const Text('تأكيد الحذف'),
+          content: const Text('هل أنت متأكد أنك تريد حذف هذه الصورة؟'),
+          actions: [
+            TextButton(
+              onPressed: () => Get.back(result: false),
+              child: const Text('إلغاء'),
+            ),
+            TextButton(
+              onPressed: () async {
+                Get.back(result: true);
+                try {
+                  if (index < cloudinaryImages.length) {
+                    // إضافة public_id إلى قائمة الصور المطلوب حذفها
+                    imagesToDelete.add(cloudinaryImages[index].publicId);
+                    cloudinaryImages.removeAt(index);
+                  }
+                  images.removeAt(index);
+                  Get.snackbar(
+                    'تم الحذف',
+                    'تم حذف الصورة بنجاح',
+                    snackPosition: SnackPosition.BOTTOM,
+                    backgroundColor: Colors.green,
+                    colorText: Colors.white,
+                  );
+                } catch (e) {
+                  Get.snackbar(
+                    'خطأ',
+                    'فشل في حذف الصورة',
+                    snackPosition: SnackPosition.BOTTOM,
+                    backgroundColor: Colors.red,
+                    colorText: Colors.white,
+                  );
+                }
+              },
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.red,
+              ),
+              child: const Text('حذف'),
+            ),
+          ],
+        ),
+      );
+    }
+  }
+
+  void reorderImages(int oldIndex, int newIndex) {
+    if (oldIndex < newIndex) {
+      newIndex -= 1;
+    }
+    final image = images.removeAt(oldIndex);
+    images.insert(newIndex, image);
+
+    if (oldIndex < cloudinaryImages.length &&
+        newIndex < cloudinaryImages.length) {
+      final cloudinaryImage = cloudinaryImages.removeAt(oldIndex);
+      cloudinaryImages.insert(newIndex, cloudinaryImage);
     }
   }
 
@@ -580,6 +772,54 @@ class RestaurantController extends GetxController {
         Get.snackbar('خطأ', 'يجب تسجيل الدخول أولاً');
         return;
       }
+
+      // رفع الصور الجديدة إلى Cloudinary داخل مجلد المستخدم
+      isUploadingImages.value = true;
+      uploadProgress.value = 0.0;
+
+      try {
+        // رفع صورة الشعار
+        if (logoImage.value != null) {
+          final logoUrl =
+              await _uploadImageToCloudinary(logoImage.value!, 'logo');
+          if (logoUrl.isNotEmpty) {
+            imageUrls.add(logoUrl);
+          }
+        }
+
+        // رفع صور المطعم
+        for (var i = 0; i < images.length; i++) {
+          final file = images[i];
+          final url = await _uploadImageToCloudinary(file, 'gallery');
+          if (url.isNotEmpty) {
+            imageUrls.add(url);
+          }
+          uploadProgress.value = (i + 1) / images.length;
+        }
+      } catch (e) {
+        showErrorSnackbar('فشل في رفع بعض الصور');
+        return;
+      } finally {
+        isUploadingImages.value = false;
+        uploadProgress.value = 0.0;
+      }
+
+      // حذف الصور المطلوب حذفها من Cloudinary
+      for (var publicId in imagesToDelete) {
+        try {
+          await CloudinaryService.deleteImage(publicId);
+        } catch (e) {
+          print('Error deleting image from Cloudinary: $e');
+        }
+      }
+
+      // تحويل قائمة cloudinaryImages إلى التنسيق المطلوب
+      final imageData = cloudinaryImages
+          .map((img) => {
+                'url': img.url,
+                'public_id': img.publicId,
+              })
+          .toList();
 
       final restaurant = Restaurant(
         id: '',
@@ -605,7 +845,10 @@ class RestaurantController extends GetxController {
 
       final docId = const Uuid().v4();
       await _restaurantService.createRestaurant(
-        restaurant.toMap(),
+        {
+          ...restaurant.toMap(),
+          'imageData': imageData,
+        },
         logoImage.value,
         images,
       );
@@ -628,6 +871,7 @@ class RestaurantController extends GetxController {
           'closingHours': closingHours
               .map((time) => time?.format(Get.context!) ?? '')
               .toList(),
+          'imageData': imageData,
         },
       );
 
@@ -640,14 +884,66 @@ class RestaurantController extends GetxController {
     }
   }
 
-  Future<void> getCurrentLocation() async {
+  Future<Position?> getCurrentLocation() async {
     try {
-      final position = await Geolocator.getCurrentPosition(
+      // التحقق من تفعيل خدمة الموقع
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        showErrorSnackbar('خدمة الموقع غير مفعّلة. يرجى تفعيل GPS');
+        return null;
+      }
+
+      // التحقق من الأذونات
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          showErrorSnackbar('تم رفض صلاحية الوصول للموقع');
+          return null;
+        }
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        showErrorSnackbar(
+            'صلاحية الوصول مرفوضة نهائيًا. يرجى تفعيلها من إعدادات الجهاز');
+        return null;
+      }
+
+      // الحصول على الموقع الحالي
+      return await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
+        timeLimit: const Duration(seconds: 5),
       );
+    } on TimeoutException {
+      showErrorSnackbar('انتهت مهلة تحديد الموقع. يرجى المحاولة مرة أخرى');
+      return null;
+    } catch (e) {
+      print('Error getting location: $e');
+      if (e is LocationServiceDisabledException) {
+        showErrorSnackbar('خدمة الموقع غير مفعّلة. فعّل GPS وحاول مرة أخرى.');
+      } else if (e is PermissionDeniedException) {
+        showErrorSnackbar('تم رفض صلاحية الموقع. فعّل الصلاحية من الإعدادات.');
+      } else {
+        showErrorSnackbar('حدث خطأ أثناء تحديد الموقع: ${e.toString()}');
+      }
+      return null;
+    }
+  }
+
+  Future<void> updateCurrentLocation() async {
+    try {
+      if (!isMapReady.value || mapController == null) {
+        showErrorSnackbar('الخريطة لم تُحمّل بعد. الرجاء الانتظار...');
+        return;
+      }
+
+      final position = await getCurrentLocation();
+      if (position == null) return;
 
       final latLng = LatLng(position.latitude, position.longitude);
-      mapController.animateCamera(
+
+      // تحديث موقع الكاميرا
+      await mapController!.animateCamera(
         CameraUpdate.newCameraPosition(
           CameraPosition(
             target: latLng,
@@ -656,24 +952,48 @@ class RestaurantController extends GetxController {
         ),
       );
 
+      // تحديث العلامة على الخريطة
       markers.clear();
       markers.add(
         Marker(
           markerId: const MarkerId('restaurant'),
           position: latLng,
+          icon:
+              BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
+          infoWindow: const InfoWindow(title: 'موقع المطعم'),
         ),
       );
 
+      // تحديث العنوان إذا لم يتم تعديله يدوياً
       if (!isAddressManuallyEdited) {
         final address = await getAddress(position.latitude, position.longitude);
-        addressController.text = address;
+        if (address.isNotEmpty) {
+          addressController.text = address;
+        }
       }
 
+      // تحديث إحداثيات الموقع
       selectedLatitude.value = position.latitude;
       selectedLongitude.value = position.longitude;
+
+      // إظهار رسالة نجاح
+      Get.snackbar(
+        'الموقع',
+        'تم تحديد موقعك الحالي',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.green,
+        colorText: Colors.white,
+        duration: const Duration(seconds: 2),
+      );
     } catch (e) {
-      print('Error getting location: $e');
-      showErrorSnackbar('فشل في الحصول على الموقع الحالي');
+      print('Error updating location: $e');
+      if (e is LocationServiceDisabledException) {
+        showErrorSnackbar('خدمة الموقع غير مفعّلة. فعّل GPS وحاول مرة أخرى.');
+      } else if (e is PermissionDeniedException) {
+        showErrorSnackbar('تم رفض صلاحية الموقع. فعّل الصلاحية من الإعدادات.');
+      } else {
+        showErrorSnackbar('حدث خطأ أثناء تحديث الموقع: ${e.toString()}');
+      }
     }
   }
 

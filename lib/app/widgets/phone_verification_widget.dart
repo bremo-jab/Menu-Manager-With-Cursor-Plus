@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:menu_manager/app/controllers/restaurant_controller.dart';
 
 class PhoneVerificationWidget extends StatefulWidget {
   final TextEditingController phoneController;
@@ -108,6 +109,9 @@ class _PhoneVerificationWidgetState extends State<PhoneVerificationWidget> {
   Future<void> _signInWithCredential(PhoneAuthCredential credential) async {
     try {
       await FirebaseAuth.instance.signInWithCredential(credential);
+      await FirebaseAuth.instance.currentUser!.reload();
+      final controller = Get.find<RestaurantController>();
+      controller.isPhoneVerified.value = true;
       setState(() {
         isVerified = true;
         isVerifying = false;
@@ -133,40 +137,33 @@ class _PhoneVerificationWidgetState extends State<PhoneVerificationWidget> {
         Row(
           children: [
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              height: 56,
+              alignment: Alignment.center,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
               decoration: BoxDecoration(
-                color: Colors.grey[200],
-                borderRadius: const BorderRadius.only(
-                  topRight: Radius.circular(12),
-                  bottomRight: Radius.circular(12),
-                ),
+                border: Border.all(color: Colors.grey),
+                borderRadius: BorderRadius.circular(8),
               ),
-              child: Text(
+              child: const Text(
                 '+970',
-                style: GoogleFonts.cairo(
-                  fontSize: 16,
-                  color: Colors.grey[700],
-                ),
+                style: TextStyle(fontSize: 16),
               ),
             ),
+            const SizedBox(width: 8),
             Expanded(
               child: TextFormField(
                 controller: widget.phoneController,
                 keyboardType: TextInputType.phone,
+                maxLength: 9,
                 decoration: InputDecoration(
                   labelText: 'رقم الهاتف',
-                  labelStyle: GoogleFonts.cairo(),
                   hintText: '5XXXXXXXX',
-                  border: const OutlineInputBorder(
-                    borderRadius: BorderRadius.only(
-                      topLeft: Radius.circular(12),
-                      bottomLeft: Radius.circular(12),
-                    ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
                   ),
                   contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                 ),
-                style: GoogleFonts.cairo(),
               ),
             ),
           ],
@@ -187,39 +184,19 @@ class _PhoneVerificationWidgetState extends State<PhoneVerificationWidget> {
                     )
                   : const Text('تحقق من الرقم'),
             ),
-            const SizedBox(width: 12),
+            if (showOtpField) const SizedBox(width: 12),
             if (showOtpField)
               Expanded(
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: otpController,
-                        keyboardType: TextInputType.number,
-                        decoration: InputDecoration(
-                          hintText: 'أدخل كود OTP',
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    ElevatedButton(
-                      onPressed: isVerifying ? null : verifyOtp,
-                      child: isVerifying
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor:
-                                    AlwaysStoppedAnimation<Color>(Colors.white),
-                              ),
-                            )
-                          : const Text('تأكيد'),
-                    ),
-                  ],
+                child: TextField(
+                  controller: otpController,
+                  decoration: const InputDecoration(
+                    labelText: 'رمز التحقق',
+                    border: OutlineInputBorder(),
+                    contentPadding:
+                        EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+                  ),
+                  style: const TextStyle(fontSize: 16),
+                  keyboardType: TextInputType.number,
                 ),
               ),
           ],

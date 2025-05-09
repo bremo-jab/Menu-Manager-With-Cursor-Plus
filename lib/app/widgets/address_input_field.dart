@@ -19,10 +19,11 @@ class AddressInputField extends StatelessWidget {
       children: [
         TextFormField(
           controller: controller,
+          maxLength: 200,
           decoration: InputDecoration(
             labelText: 'العنوان',
             hintText: 'شارع اليرموك، بجانب البنك الوطني...',
-            prefixIcon: const Icon(Icons.place),
+            prefixIcon: const Icon(Icons.location_on),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
             ),

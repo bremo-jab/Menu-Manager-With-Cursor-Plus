@@ -12,7 +12,7 @@ class RestaurantNameField extends StatelessWidget {
       controller: controller,
       maxLength: 60,
       decoration: InputDecoration(
-        prefixIcon: const Icon(Icons.storefront),
+        prefixIcon: const Icon(Icons.business),
         hintText: 'اسم المطعم (مثال: مطعم الشيف عبود)',
         labelText: 'اسم المطعم',
         border: OutlineInputBorder(

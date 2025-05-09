@@ -21,6 +21,8 @@ import 'package:menu_manager/utils/snackbar_helper.dart';
 import 'package:http/http.dart' as http;
 import 'package:menu_manager/app/models/cloudinary_image.dart';
 import 'dart:async';
+import 'package:menu_manager/app/services/opencage_service.dart';
+import 'package:menu_manager/app/services/google_maps_service.dart';
 
 class RestaurantController extends GetxController {
   final RestaurantService _restaurantService = Get.find<RestaurantService>();
@@ -68,6 +70,7 @@ class RestaurantController extends GetxController {
   final isLoading = false.obs;
   final currentStep = 0.obs;
   final logoImage = Rx<File?>(null);
+  final galleryImages = <File>[].obs;
   final images = <File>[].obs;
   final cloudinaryImages = <CloudinaryImage>[].obs;
   final imageUrls = <String>[].obs;
@@ -78,6 +81,7 @@ class RestaurantController extends GetxController {
   final selectedServiceOptions = <String>[].obs;
   final wantsEmailUpdates = false.obs;
   final isMapReady = false.obs;
+  var isPhoneVerified = false.obs;
 
   GoogleMapController? mapController;
   final initialPosition = const LatLng(24.7136, 46.6753); // الرياض
@@ -155,6 +159,55 @@ class RestaurantController extends GetxController {
     // Initialize working hours arrays with null values for each day
     workingHours.value = List.generate(7, (_) => null);
     closingHours.value = List.generate(7, (_) => null);
+    loadTempData();
+    nameController.addListener(saveTempData);
+    phoneController.addListener(saveTempData);
+    descriptionController.addListener(saveTempData);
+
+    // Check phone verification status
+    FirebaseAuth.instance.currentUser?.reload().then((_) {
+      isPhoneVerified.value =
+          FirebaseAuth.instance.currentUser?.phoneNumber != null;
+    });
+
+    // تحميل بيانات المطعم إذا كان المستخدم يملك مطعماً
+    loadRestaurantData();
+  }
+
+  Future<void> loadRestaurantData() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+
+      final restaurant = await _restaurantService.getRestaurant(user.uid);
+      if (restaurant != null) {
+        // تعيين قيم المدينة
+        selectedCity.value = restaurant.city;
+        cityController.text = restaurant.city;
+
+        // تعيين باقي القيم
+        nameController.text = restaurant.name;
+        descriptionController.text = restaurant.description;
+        addressController.text = restaurant.address;
+
+        // تعيين ساعات العمل
+        if (restaurant.workingHours.isNotEmpty) {
+          for (var entry in restaurant.workingHours.entries) {
+            final dayIndex = restaurant.workingDays.indexOf(entry.key);
+            if (dayIndex != -1) {
+              final timeParts = entry.value.split(':');
+              if (timeParts.length == 2) {
+                final hour = int.parse(timeParts[0]);
+                final minute = int.parse(timeParts[1]);
+                workingHours[dayIndex] = TimeOfDay(hour: hour, minute: minute);
+              }
+            }
+          }
+        }
+      }
+    } catch (e) {
+      print('Error loading restaurant data: $e');
+    }
   }
 
   void _initializeControllers() {
@@ -180,12 +233,6 @@ class RestaurantController extends GetxController {
     final user = FirebaseAuth.instance.currentUser;
     if (user != null && user.email != null) {
       emailController.text = user.email!;
-    }
-
-    // Set initial city value
-    if (palestinianCities.isNotEmpty) {
-      selectedCity.value = palestinianCities.first;
-      cityController.text = palestinianCities.first;
     }
   }
 
@@ -243,85 +290,57 @@ class RestaurantController extends GetxController {
     }
   }
 
-  Future<String> getAddressFromPhoton(double lat, double lon) async {
-    final url =
-        Uri.parse('https://photon.komoot.io/reverse?lat=$lat&lon=$lon&lang=ar');
-    final response = await http.get(url);
-    if (response.statusCode == 200) {
-      final data = json.decode(response.body);
-      final features = data['features'];
-      if (features != null && features.isNotEmpty) {
-        final props = features[0]['properties'];
-        final street = props['street'] ?? '';
-        final suburb = props['suburb'] ?? '';
-        final city = props['city'] ?? '';
-        final name = props['name'] ?? '';
-        final addressParts = [street, suburb, city, name]
-            .where((part) => part.isNotEmpty)
-            .toList();
-        return addressParts.join('، ');
+  Future<String?> getBestAddressFromCoordinates(double lat, double lng) async {
+    try {
+      final openCageService = Get.find<OpenCageService>();
+      final googleMapsService = Get.find<GoogleMapsService>();
+
+      final openCageResult = await openCageService.getAddress(lat, lng);
+      final googleMapsResult = await googleMapsService.getAddress(lat, lng);
+
+      String? address;
+      if (openCageResult != null) {
+        address = openCageResult['formatted'] as String?;
       }
+      if (!_isValidArabicAddress(address) && googleMapsResult != null) {
+        address = googleMapsResult['formatted'] as String?;
+      }
+      if (!_isValidArabicAddress(address)) {
+        return null;
+      }
+      return _cleanArabicAddress(address!);
+    } catch (e) {
+      print('Error getting address from services: $e');
+      return null;
     }
-    return '';
   }
 
-  Future<String> getAddressFromNominatim(double lat, double lon) async {
-    final url = Uri.parse(
-        'https://nominatim.openstreetmap.org/reverse?lat=$lat&lon=$lon&format=json&accept-language=ar');
-    final headers = {
-      'User-Agent': 'menu-app/1.0 (barhom.development@gmail.com)'
-    };
-    final response = await http.get(url, headers: headers);
-    if (response.statusCode == 200) {
-      final data = json.decode(response.body);
-      final address = data['address'];
-      if (address != null) {
-        final road = address['road'] ?? '';
-        final suburb = address['suburb'] ?? '';
-        final city = address['city'] ?? address['town'] ?? '';
-        final state = address['state'] ?? '';
-        final addressParts = [road, suburb, city, state]
-            .where((part) => part.isNotEmpty)
-            .toList();
-        return addressParts.join('، ');
-      }
+  bool _isValidArabicAddress(String? address) {
+    if (address == null) return false;
+    if (address.toLowerCase().contains('unnamed') ||
+        address.toLowerCase().contains('unknown') ||
+        address.toLowerCase().contains('null')) {
+      return false;
     }
-    return '';
+    final arabicRegex = RegExp(r'[\u0600-\u06FF]');
+    return arabicRegex.hasMatch(address);
+  }
+
+  String _cleanArabicAddress(String address) {
+    List<String> parts = address.split(',').map((e) => e.trim()).toList();
+    final arabicRegex = RegExp(r'^[\u0600-\u06FF\s0-9]+$');
+    List<String> cleaned = parts.where((part) {
+      return arabicRegex.hasMatch(part) &&
+          !part.toLowerCase().contains('unnamed') &&
+          !part.toLowerCase().contains('unknown') &&
+          !part.toLowerCase().contains('null');
+    }).toList();
+    return cleaned.join('، ');
   }
 
   Future<String> getAddress(double lat, double lon) async {
-    try {
-      final photonFuture = getAddressFromPhoton(lat, lon);
-      final nominatimFuture = getAddressFromNominatim(lat, lon);
-
-      final results = await Future.wait([photonFuture, nominatimFuture]);
-
-      final photonParts = results[0].split('، ').map((e) => e.trim()).toList();
-      final photonFirstPart = photonParts.isNotEmpty ? photonParts.first : '';
-
-      final nominatimParts =
-          results[1].split('، ').map((e) => e.trim()).toList();
-      final filteredNominatimParts =
-          nominatimParts.where((part) => part != photonFirstPart).toList();
-
-      final merged = [photonFirstPart, ...filteredNominatimParts]
-          .where((part) => part.isNotEmpty)
-          .toList();
-      final addressString = merged.join('، ');
-
-      for (final city in palestinianCities) {
-        if (addressString.contains(city)) {
-          selectedCity.value = city;
-          cityController.text = city;
-          break;
-        }
-      }
-
-      return addressString;
-    } catch (e) {
-      print('Error merging address: $e');
-      return '';
-    }
+    return await getBestAddressFromCoordinates(lat, lon) ??
+        'لم يتم العثور على عنوان';
   }
 
   Future<void> onMapTap(LatLng position) async {
@@ -527,13 +546,6 @@ class RestaurantController extends GetxController {
       final XFile? image = await picker.pickImage(source: source);
       if (image != null) {
         logoImage.value = File(image.path);
-        Get.snackbar(
-          'تم التحديث',
-          'تم تحديث الشعار بنجاح',
-          snackPosition: SnackPosition.BOTTOM,
-          backgroundColor: Colors.green,
-          colorText: Colors.white,
-        );
       }
     } else if (status.isPermanentlyDenied) {
       await _showPermissionDialog(
@@ -696,52 +708,39 @@ class RestaurantController extends GetxController {
     }
   }
 
-  void removeImage(int index) {
-    if (index >= 0 && index < images.length) {
-      Get.dialog<bool>(
-        AlertDialog(
-          title: const Text('تأكيد الحذف'),
-          content: const Text('هل أنت متأكد أنك تريد حذف هذه الصورة؟'),
-          actions: [
-            TextButton(
-              onPressed: () => Get.back(result: false),
-              child: const Text('إلغاء'),
+  Future<void> removeImage(int index) async {
+    final confirm = await Get.dialog<bool>(
+      AlertDialog(
+        title: const Text('تأكيد الحذف'),
+        content: const Text('هل أنت متأكد أنك تريد حذف هذه الصورة؟'),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(result: false),
+            child: const Text('إلغاء'),
+          ),
+          TextButton(
+            onPressed: () => Get.back(result: true),
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.red,
             ),
-            TextButton(
-              onPressed: () async {
-                Get.back(result: true);
-                try {
-                  if (index < cloudinaryImages.length) {
-                    // إضافة public_id إلى قائمة الصور المطلوب حذفها
-                    imagesToDelete.add(cloudinaryImages[index].publicId);
-                    cloudinaryImages.removeAt(index);
-                  }
-                  images.removeAt(index);
-                  Get.snackbar(
-                    'تم الحذف',
-                    'تم حذف الصورة بنجاح',
-                    snackPosition: SnackPosition.BOTTOM,
-                    backgroundColor: Colors.green,
-                    colorText: Colors.white,
-                  );
-                } catch (e) {
-                  Get.snackbar(
-                    'خطأ',
-                    'فشل في حذف الصورة',
-                    snackPosition: SnackPosition.BOTTOM,
-                    backgroundColor: Colors.red,
-                    colorText: Colors.white,
-                  );
-                }
-              },
-              style: TextButton.styleFrom(
-                foregroundColor: Colors.red,
-              ),
-              child: const Text('حذف'),
-            ),
-          ],
-        ),
-      );
+            child: const Text('حذف'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      // نحذف من القائمتين معًا
+      if (index < cloudinaryImages.length) {
+        imagesToDelete.add(cloudinaryImages[index].publicId);
+        cloudinaryImages.removeAt(index);
+      }
+      if (index < images.length) {
+        images.removeAt(index);
+      }
+
+      images.refresh();
+      cloudinaryImages.refresh();
     }
   }
 
@@ -832,6 +831,7 @@ class RestaurantController extends GetxController {
         instagram: instagramController.text,
         facebook: facebookController.text,
         twitter: twitterController.text,
+        city: selectedCity.value,
         workingHours: workingHours
             .map((time) => time?.format(Get.context!) ?? '')
             .toList(),
@@ -865,6 +865,7 @@ class RestaurantController extends GetxController {
           'instagram': instagramController.text,
           'facebook': facebookController.text,
           'twitter': twitterController.text,
+          'city': selectedCity.value,
           'workingHours': workingHours
               .map((time) => time?.format(Get.context!) ?? '')
               .toList(),
@@ -1039,5 +1040,86 @@ class RestaurantController extends GetxController {
 
   String? getDayValidationError(String dayName) {
     return dayValidationErrors[dayName];
+  }
+
+  void onPhoneVerifiedSuccessfully() {
+    isPhoneVerified.value = true;
+  }
+
+  void goToNextStep() {
+    if (currentStep.value == 1 && !isPhoneVerified.value) {
+      Get.snackbar('تحذير', 'يرجى التحقق من رقم الهاتف أولاً');
+      return;
+    }
+    currentStep.value++;
+  }
+
+  Future<void> saveTempData() async {
+    final prefs = await SharedPreferences.getInstance();
+    prefs.setString('temp_name', nameController.text);
+    prefs.setString('temp_phone', phoneController.text);
+    prefs.setString('temp_description', descriptionController.text);
+  }
+
+  Future<void> loadTempData() async {
+    final prefs = await SharedPreferences.getInstance();
+    nameController.text = prefs.getString('temp_name') ?? '';
+    phoneController.text = prefs.getString('temp_phone') ?? '';
+    descriptionController.text = prefs.getString('temp_description') ?? '';
+  }
+
+  Future<void> uploadImages() async {
+    try {
+      isUploadingImages.value = true;
+      uploadProgress.value = 0.0;
+
+      final totalImages = images.length;
+      var uploadedCount = 0;
+
+      for (var image in images) {
+        try {
+          final result =
+              await CloudinaryService.uploadImage(image, 'restaurants');
+          if (result != null) {
+            cloudinaryImages.add(result);
+            imageUrls.add(result.url);
+          }
+          uploadedCount++;
+          uploadProgress.value = uploadedCount / totalImages;
+        } catch (e) {
+          print('Error uploading image: $e');
+          // Continue with next image even if one fails
+        }
+      }
+
+      if (cloudinaryImages.isEmpty) {
+        throw Exception('فشل رفع جميع الصور');
+      }
+
+      Get.snackbar(
+        'نجاح',
+        'تم رفع الصور بنجاح',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.green,
+        colorText: Colors.white,
+      );
+    } catch (e) {
+      print('Error in uploadImages: $e');
+      Get.dialog(
+        AlertDialog(
+          title: const Text('خطأ'),
+          content: const Text('فشل رفع الصور، يرجى المحاولة مجدداً'),
+          actions: [
+            TextButton(
+              onPressed: () => Get.back(),
+              child: const Text('حسناً'),
+            ),
+          ],
+        ),
+      );
+    } finally {
+      isUploadingImages.value = false;
+      uploadProgress.value = 0.0;
+    }
   }
 }

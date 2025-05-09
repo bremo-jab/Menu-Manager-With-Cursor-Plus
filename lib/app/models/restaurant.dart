@@ -9,6 +9,7 @@ class Restaurant {
   final String instagram;
   final String facebook;
   final String twitter;
+  final String city;
   final List<String> workingHours;
   final List<String> closingHours;
   final String ownerId;
@@ -26,6 +27,7 @@ class Restaurant {
     required this.instagram,
     required this.facebook,
     required this.twitter,
+    required this.city,
     required this.workingHours,
     required this.closingHours,
     required this.ownerId,
@@ -45,6 +47,7 @@ class Restaurant {
       'instagram': instagram,
       'facebook': facebook,
       'twitter': twitter,
+      'city': city,
       'workingHours': workingHours,
       'closingHours': closingHours,
       'ownerId': ownerId,
@@ -65,6 +68,7 @@ class Restaurant {
       instagram: map['instagram'] ?? '',
       facebook: map['facebook'] ?? '',
       twitter: map['twitter'] ?? '',
+      city: map['city'] ?? '',
       workingHours: List<String>.from(map['workingHours'] ?? []),
       closingHours: List<String>.from(map['closingHours'] ?? []),
       ownerId: map['ownerId'] ?? '',

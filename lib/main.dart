@@ -7,10 +7,15 @@ import 'package:menu_manager/app/theme/app_theme.dart';
 import 'package:menu_manager/app/bindings/initial_binding.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:menu_manager/app/services/opencage_service.dart';
+import 'package:menu_manager/app/services/google_maps_service.dart';
+import 'package:flutter/services.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
+  await Get.putAsync(() => OpenCageService().init());
+  await Get.putAsync(() => GoogleMapsService().init());
   final prefs = await SharedPreferences.getInstance();
   final bool isLoggedIn = prefs.getBool('isLoggedIn') ?? false;
 

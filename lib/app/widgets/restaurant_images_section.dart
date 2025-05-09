@@ -133,11 +133,19 @@ class RestaurantImagesSection extends StatelessWidget {
                             ),
                           ),
                           Positioned(
-                            top: 0,
-                            right: 0,
-                            child: IconButton(
-                              icon: const Icon(Icons.close, color: Colors.red),
-                              onPressed: () => controller.removeImage(i),
+                            top: 4,
+                            right: 4,
+                            child: GestureDetector(
+                              onTap: () => controller.removeImage(i),
+                              child: Container(
+                                decoration: const BoxDecoration(
+                                  color: Colors.red,
+                                  shape: BoxShape.circle,
+                                ),
+                                padding: const EdgeInsets.all(6),
+                                child: const Icon(Icons.close,
+                                    color: Colors.white, size: 16),
+                              ),
                             ),
                           ),
                         ],
@@ -165,12 +173,20 @@ class RestaurantImagesSection extends StatelessWidget {
                             ),
                           ),
                           Positioned(
-                            top: 0,
-                            right: 0,
-                            child: IconButton(
-                              icon: const Icon(Icons.close, color: Colors.red),
-                              onPressed: () => controller
+                            top: 4,
+                            right: 4,
+                            child: GestureDetector(
+                              onTap: () => controller
                                   .removeImage(i + controller.images.length),
+                              child: Container(
+                                decoration: const BoxDecoration(
+                                  color: Colors.red,
+                                  shape: BoxShape.circle,
+                                ),
+                                padding: const EdgeInsets.all(6),
+                                child: const Icon(Icons.close,
+                                    color: Colors.white, size: 16),
+                              ),
                             ),
                           ),
                         ],

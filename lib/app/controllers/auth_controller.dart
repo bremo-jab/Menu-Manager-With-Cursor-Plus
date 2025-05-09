@@ -11,6 +11,7 @@ import 'package:menu_manager/app/models/user_model.dart';
 import 'package:menu_manager/app/models/device_info_model.dart';
 import 'package:uuid/uuid.dart';
 import 'package:menu_manager/app/services/auth_service.dart';
+import 'package:menu_manager/app/utils/snackbar_helper.dart';
 
 class AuthController extends GetxController {
   final AuthService _authService = AuthService();
@@ -150,12 +151,9 @@ class AuthController extends GetxController {
       await prefs.setString('user_id', userCredential.user!.uid);
 
       await checkUserStateAndRedirect();
+      showCustomSnackbar('نجاح', 'تم تسجيل الدخول بنجاح');
     } catch (e) {
-      Get.snackbar(
-        'خطأ',
-        'حدث خطأ أثناء تسجيل الدخول',
-        snackPosition: SnackPosition.BOTTOM,
-      );
+      showCustomSnackbar('خطأ', 'حدث خطأ أثناء تسجيل الدخول');
     } finally {
       isLoading.value = false;
     }
@@ -173,12 +171,9 @@ class AuthController extends GetxController {
       await prefs.setString('user_id', userCredential.user!.uid);
 
       await checkUserStateAndRedirect();
+      showCustomSnackbar('نجاح', 'تم تسجيل الدخول بنجاح');
     } catch (e) {
-      Get.snackbar(
-        'خطأ',
-        'حدث خطأ أثناء تسجيل الدخول',
-        snackPosition: SnackPosition.BOTTOM,
-      );
+      showCustomSnackbar('خطأ', 'حدث خطأ أثناء تسجيل الدخول');
     } finally {
       isLoading.value = false;
     }
@@ -195,12 +190,9 @@ class AuthController extends GetxController {
       await prefs.remove('isLoggedIn');
 
       Get.offAllNamed(Routes.LOGIN);
+      showCustomSnackbar('نجاح', 'تم تسجيل الخروج بنجاح');
     } catch (e) {
-      Get.snackbar(
-        'خطأ',
-        'حدث خطأ أثناء تسجيل الخروج',
-        snackPosition: SnackPosition.BOTTOM,
-      );
+      showCustomSnackbar('خطأ', 'حدث خطأ أثناء تسجيل الخروج');
     } finally {
       isLoading.value = false;
     }

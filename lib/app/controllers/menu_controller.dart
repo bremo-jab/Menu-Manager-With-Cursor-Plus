@@ -5,6 +5,7 @@ import 'package:menu_manager/app/data/models/menu_item_model.dart';
 import 'package:menu_manager/app/services/menu_service.dart';
 import 'package:menu_manager/app/services/restaurant_service.dart';
 import 'package:uuid/uuid.dart';
+import 'package:menu_manager/app/utils/snackbar_helper.dart';
 
 class MenuController extends GetxController {
   final MenuService _menuService = Get.find<MenuService>();
@@ -44,10 +45,10 @@ class MenuController extends GetxController {
       categories.value = _menuService.categories;
     } catch (e) {
       Future.delayed(Duration.zero, () {
-        Get.snackbar(
+        showCustomSnackbar(
           'خطأ',
           'حدث خطأ أثناء جلب الفئات',
-          snackPosition: SnackPosition.BOTTOM,
+          position: SnackPosition.BOTTOM,
         );
       });
     } finally {
@@ -62,10 +63,10 @@ class MenuController extends GetxController {
       items.value = _menuService.items;
     } catch (e) {
       Future.delayed(Duration.zero, () {
-        Get.snackbar(
+        showCustomSnackbar(
           'خطأ',
           'حدث خطأ أثناء جلب العناصر',
-          snackPosition: SnackPosition.BOTTOM,
+          position: SnackPosition.BOTTOM,
         );
       });
     } finally {
@@ -76,10 +77,10 @@ class MenuController extends GetxController {
   Future<void> addCategory() async {
     if (categoryNameController.text.isEmpty ||
         categoryDescriptionController.text.isEmpty) {
-      Get.snackbar(
+      showCustomSnackbar(
         'خطأ',
         'الرجاء ملء جميع الحقول',
-        snackPosition: SnackPosition.BOTTOM,
+        position: SnackPosition.BOTTOM,
       );
       return;
     }
@@ -98,13 +99,9 @@ class MenuController extends GetxController {
       await _menuService.createCategory(category);
       categoryNameController.clear();
       categoryDescriptionController.clear();
-      Get.back();
+      showCustomSnackbar('نجاح', 'تم إضافة الفئة بنجاح');
     } catch (e) {
-      Get.snackbar(
-        'خطأ',
-        'حدث خطأ أثناء إضافة الفئة',
-        snackPosition: SnackPosition.BOTTOM,
-      );
+      showCustomSnackbar('خطأ', 'فشل إضافة الفئة');
     } finally {
       isLoading.value = false;
     }
@@ -114,10 +111,10 @@ class MenuController extends GetxController {
     if (itemNameController.text.isEmpty ||
         itemDescriptionController.text.isEmpty ||
         itemPriceController.text.isEmpty) {
-      Get.snackbar(
+      showCustomSnackbar(
         'خطأ',
         'الرجاء ملء جميع الحقول',
-        snackPosition: SnackPosition.BOTTOM,
+        position: SnackPosition.BOTTOM,
       );
       return;
     }
@@ -140,13 +137,9 @@ class MenuController extends GetxController {
       itemNameController.clear();
       itemDescriptionController.clear();
       itemPriceController.clear();
-      Get.back();
+      showCustomSnackbar('نجاح', 'تم إضافة العنصر بنجاح');
     } catch (e) {
-      Get.snackbar(
-        'خطأ',
-        'حدث خطأ أثناء إضافة العنصر',
-        snackPosition: SnackPosition.BOTTOM,
-      );
+      showCustomSnackbar('خطأ', 'فشل إضافة العنصر');
     } finally {
       isLoading.value = false;
     }
@@ -156,10 +149,10 @@ class MenuController extends GetxController {
     if (itemNameController.text.isEmpty ||
         itemDescriptionController.text.isEmpty ||
         itemPriceController.text.isEmpty) {
-      Get.snackbar(
+      showCustomSnackbar(
         'خطأ',
         'الرجاء ملء جميع الحقول',
-        snackPosition: SnackPosition.BOTTOM,
+        position: SnackPosition.BOTTOM,
       );
       return;
     }
@@ -183,13 +176,9 @@ class MenuController extends GetxController {
       itemNameController.clear();
       itemDescriptionController.clear();
       itemPriceController.clear();
-      Get.back();
+      showCustomSnackbar('نجاح', 'تم تحديث العنصر بنجاح');
     } catch (e) {
-      Get.snackbar(
-        'خطأ',
-        'حدث خطأ أثناء تحديث العنصر',
-        snackPosition: SnackPosition.BOTTOM,
-      );
+      showCustomSnackbar('خطأ', 'فشل تحديث العنصر');
     } finally {
       isLoading.value = false;
     }

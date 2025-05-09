@@ -19,72 +19,91 @@ class RestaurantImagesSection extends StatelessWidget {
         // شعار المطعم
         Card(
           elevation: 2,
-          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
           child: Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(16.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
+                const Text(
                   'شعار المطعم',
-                  style: GoogleFonts.cairo(
-                    fontSize: 20,
+                  style: TextStyle(
+                    fontSize: 16,
                     fontWeight: FontWeight.bold,
-                    color: Colors.black87,
                   ),
                 ),
                 const SizedBox(height: 16),
-                Center(
-                  child: Stack(
-                    children: [
-                      Obx(() => GestureDetector(
-                            onTap: controller.pickLogo,
-                            child: CircleAvatar(
-                              radius: 60,
-                              backgroundColor: Colors.grey[200],
-                              backgroundImage:
-                                  controller.logoImage.value != null
-                                      ? FileImage(controller.logoImage.value!)
-                                      : null,
-                              child: controller.logoImage.value == null
-                                  ? const Icon(Icons.restaurant, size: 40)
-                                  : null,
+                Obx(() {
+                  if (controller.logoImage.value == null) {
+                    return InkWell(
+                      onTap: controller.pickLogo,
+                      child: Container(
+                        height: 200,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[200],
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: Colors.grey[300]!,
+                            width: 2,
+                            style: BorderStyle.solid,
+                          ),
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.add_photo_alternate,
+                              size: 48,
+                              color: Colors.grey[400],
                             ),
-                          )),
-                      Obx(() => controller.logoImage.value != null
-                          ? Positioned(
-                              top: 0,
-                              right: 0,
-                              child: IconButton(
-                                icon:
-                                    const Icon(Icons.close, color: Colors.red),
-                                onPressed: controller.deleteLogo,
+                            const SizedBox(height: 8),
+                            Text(
+                              'اضغط لإضافة شعار المطعم',
+                              style: TextStyle(
+                                color: Colors.grey[600],
+                                fontSize: 16,
                               ),
-                            )
-                          : const SizedBox.shrink()),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }
+                  return Stack(
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: Image.file(
+                          controller.logoImage.value!,
+                          height: 200,
+                          width: double.infinity,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                      Positioned(
+                        top: 8,
+                        right: 8,
+                        child: InkWell(
+                          onTap: controller.deleteLogo,
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withOpacity(0.5),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.close,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                          ),
+                        ),
+                      ),
                     ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Center(
-                  child: ElevatedButton.icon(
-                    onPressed: controller.pickLogo,
-                    icon: const Icon(Icons.add_photo_alternate),
-                    label: const Text('إضافة الشعار'),
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 24,
-                        vertical: 12,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                  ),
-                ),
+                  );
+                }),
               ],
             ),
           ),

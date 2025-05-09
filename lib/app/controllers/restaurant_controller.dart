@@ -23,6 +23,7 @@ import 'package:menu_manager/app/models/cloudinary_image.dart';
 import 'dart:async';
 import 'package:menu_manager/app/services/opencage_service.dart';
 import 'package:menu_manager/app/services/google_maps_service.dart';
+import 'package:menu_manager/app/utils/snackbar_helper.dart';
 
 class RestaurantController extends GetxController {
   final RestaurantService _restaurantService = Get.find<RestaurantService>();
@@ -138,6 +139,14 @@ class RestaurantController extends GetxController {
 
   // إضافة قائمة جديدة لتخزين الصور المطلوب حذفها
   final imagesToDelete = <String>[].obs;
+
+  // Page Controller
+  final pageController = PageController();
+  final currentPage = 0.obs;
+  final totalSteps = 6.obs; // عدد البطاقات الكاملة
+
+  // Phone verification
+  final TextEditingController otpController = TextEditingController();
 
   @override
   void onInit() {
@@ -278,6 +287,8 @@ class RestaurantController extends GetxController {
     if (Get.isRegistered<GoogleMapController>()) {
       mapController!.dispose();
     }
+    pageController.dispose();
+    otpController.dispose();
     super.onClose();
   }
 
@@ -361,13 +372,9 @@ class RestaurantController extends GetxController {
     selectedLatitude.value = position.latitude;
     selectedLongitude.value = position.longitude;
 
-    Get.snackbar(
+    showCustomSnackbar(
       'الموقع',
       'تم تحديد موقع المطعم بنجاح',
-      snackPosition: SnackPosition.BOTTOM,
-      backgroundColor: Colors.green,
-      colorText: Colors.white,
-      duration: const Duration(seconds: 2),
     );
   }
 
@@ -507,240 +514,48 @@ class RestaurantController extends GetxController {
     );
   }
 
-  Future<void> pickLogo() async {
-    if (logoImage.value != null) {
-      final confirm = await Get.dialog<bool>(
-        AlertDialog(
-          title: const Text('تأكيد تغيير الشعار'),
-          content:
-              const Text('هل أنت متأكد أنك تريد تغيير صورة الشعار الحالية؟'),
-          actions: [
-            TextButton(
-              onPressed: () => Get.back(result: false),
-              child: const Text('إلغاء'),
-            ),
-            TextButton(
-              onPressed: () => Get.back(result: true),
-              child: const Text('نعم'),
-            ),
-          ],
-        ),
+  void pickLogo() async {
+    try {
+      final ImagePicker picker = ImagePicker();
+      final XFile? image = await picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 800,
+        maxHeight: 800,
+        imageQuality: 85,
       );
-      if (confirm != true) return;
-    }
-
-    final source = await _chooseImageSource();
-    if (source == null) return;
-
-    await _showPermissionInfoIfNeeded(
-        source == ImageSource.camera ? 'الكاميرا' : 'المعرض');
-
-    final permission = source == ImageSource.camera
-        ? Permission.camera
-        : (Platform.isAndroid ? Permission.storage : Permission.photos);
-
-    final status = await permission.request();
-
-    if (status.isGranted) {
-      final picker = ImagePicker();
-      final XFile? image = await picker.pickImage(source: source);
       if (image != null) {
         logoImage.value = File(image.path);
       }
-    } else if (status.isPermanentlyDenied) {
-      await _showPermissionDialog(
-        title: 'إذن مرفوض نهائيًا',
-        message:
-            'يرجى فتح إعدادات التطبيق للسماح بالوصول إلى الكاميرا أو المعرض.',
-      );
+    } catch (e) {
+      showCustomSnackbar('خطأ', 'حدث خطأ أثناء اختيار الشعار');
+    }
+  }
+
+  void deleteLogo() {
+    logoImage.value = null;
+    showCustomSnackbar('نجاح', 'تم حذف الشعار بنجاح');
+  }
+
+  void pickImages() async {
+    try {
+      final ImagePicker picker = ImagePicker();
+      final List<XFile> selectedImages = await picker.pickMultiImage();
+      if (selectedImages.isNotEmpty) {
+        images.addAll(selectedImages.map((image) => File(image.path)));
+      }
+    } catch (e) {
+      showCustomSnackbar('خطأ', 'حدث خطأ أثناء اختيار الصور');
+    }
+  }
+
+  void removeImage(int index) {
+    if (index < images.length) {
+      images.removeAt(index);
     } else {
-      Get.snackbar(
-        'إذن مرفوض',
-        'لا يمكن تحميل صورة الشعار بدون إذن.',
-        snackPosition: SnackPosition.BOTTOM,
-      );
-    }
-  }
-
-  Future<void> deleteLogo() async {
-    if (logoImage.value == null) return;
-
-    final confirm = await Get.dialog<bool>(
-      AlertDialog(
-        title: const Text('تأكيد حذف الشعار'),
-        content: const Text('هل أنت متأكد أنك تريد حذف الشعار الحالي؟'),
-        actions: [
-          TextButton(
-            onPressed: () => Get.back(result: false),
-            child: const Text('إلغاء'),
-          ),
-          TextButton(
-            onPressed: () => Get.back(result: true),
-            style: TextButton.styleFrom(
-              foregroundColor: Colors.red,
-            ),
-            child: const Text('حذف'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirm == true) {
-      logoImage.value = null;
-      Get.snackbar(
-        'تم الحذف',
-        'تم حذف الشعار بنجاح',
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.green,
-        colorText: Colors.white,
-      );
-    }
-  }
-
-  Future<String> _uploadImageToCloudinary(File image, String subfolder) async {
-    try {
-      final user = FirebaseAuth.instance.currentUser;
-      final folderName = 'restaurants/${user?.uid}/$subfolder';
-      final response = await CloudinaryService.uploadImage(image, folderName);
-      return response?.url ?? '';
-    } catch (e) {
-      print('فشل رفع الصورة: $e');
-      return '';
-    }
-  }
-
-  Future<void> pickImages() async {
-    final source = await _chooseImageSource();
-    if (source == null) return;
-
-    await _showPermissionInfoIfNeeded(
-        source == ImageSource.camera ? 'الكاميرا' : 'المعرض');
-
-    final permission = source == ImageSource.camera
-        ? Permission.camera
-        : (Platform.isAndroid ? Permission.storage : Permission.photos);
-
-    final status = await permission.request();
-
-    if (status.isGranted) {
-      final picker = ImagePicker();
-      if (source == ImageSource.camera) {
-        final XFile? image = await picker.pickImage(source: source);
-        if (image != null) {
-          if (images.length >= 10) {
-            Get.snackbar(
-              'تنبيه',
-              'يمكنك إضافة 10 صور كحد أقصى',
-              snackPosition: SnackPosition.BOTTOM,
-              backgroundColor: Colors.orange,
-              colorText: Colors.white,
-            );
-            return;
-          }
-          final file = File(image.path);
-          images.add(file);
-        }
-      } else {
-        final List<XFile> selectedImages = await picker.pickMultiImage();
-        if (selectedImages.isNotEmpty) {
-          final remainingSlots = 10 - images.length;
-          if (remainingSlots <= 0) {
-            Get.snackbar(
-              'تنبيه',
-              'يمكنك إضافة 10 صور كحد أقصى',
-              snackPosition: SnackPosition.BOTTOM,
-              backgroundColor: Colors.orange,
-              colorText: Colors.white,
-            );
-            return;
-          }
-
-          final imagesToAdd = selectedImages.take(remainingSlots).toList();
-          for (var image in imagesToAdd) {
-            images.add(File(image.path));
-          }
-        }
+      final cloudIndex = index - images.length;
+      if (cloudIndex < cloudinaryImages.length) {
+        cloudinaryImages.removeAt(cloudIndex);
       }
-    } else if (status.isPermanentlyDenied) {
-      await _showPermissionDialog(
-        title: 'إذن مرفوض نهائيًا',
-        message:
-            'يرجى فتح إعدادات التطبيق للسماح بالوصول إلى الكاميرا أو المعرض.',
-      );
-    } else {
-      Get.snackbar(
-        'إذن مرفوض',
-        'لا يمكن تحميل الصور بدون إذن.',
-        snackPosition: SnackPosition.BOTTOM,
-      );
-    }
-  }
-
-  String? _extractPublicIdFromUrl(String url) {
-    try {
-      final uri = Uri.parse(url);
-      final pathSegments = uri.pathSegments;
-      if (pathSegments.length >= 2) {
-        // تنسيق رابط Cloudinary: https://res.cloudinary.com/cloud_name/image/upload/v1234567890/folder/image.jpg
-        final uploadIndex = pathSegments.indexOf('upload');
-        if (uploadIndex != -1 && uploadIndex + 1 < pathSegments.length) {
-          // نأخذ كل الأجزاء بعد 'upload' ونحذف الامتداد
-          final publicId = pathSegments.sublist(uploadIndex + 1).join('/');
-          return publicId.replaceAll(RegExp(r'\.[^/.]+$'), '');
-        }
-      }
-      return null;
-    } catch (e) {
-      print('Error extracting public_id: $e');
-      return null;
-    }
-  }
-
-  Future<void> _deleteImageFromCloudinary(String url) async {
-    try {
-      final publicId = _extractPublicIdFromUrl(url);
-      if (publicId != null) {
-        await CloudinaryService.deleteImage(publicId);
-      }
-    } catch (e) {
-      print('Error deleting image from Cloudinary: $e');
-      rethrow;
-    }
-  }
-
-  Future<void> removeImage(int index) async {
-    final confirm = await Get.dialog<bool>(
-      AlertDialog(
-        title: const Text('تأكيد الحذف'),
-        content: const Text('هل أنت متأكد أنك تريد حذف هذه الصورة؟'),
-        actions: [
-          TextButton(
-            onPressed: () => Get.back(result: false),
-            child: const Text('إلغاء'),
-          ),
-          TextButton(
-            onPressed: () => Get.back(result: true),
-            style: TextButton.styleFrom(
-              foregroundColor: Colors.red,
-            ),
-            child: const Text('حذف'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirm == true) {
-      // نحذف من القائمتين معًا
-      if (index < cloudinaryImages.length) {
-        imagesToDelete.add(cloudinaryImages[index].publicId);
-        cloudinaryImages.removeAt(index);
-      }
-      if (index < images.length) {
-        images.removeAt(index);
-      }
-
-      images.refresh();
-      cloudinaryImages.refresh();
     }
   }
 
@@ -748,14 +563,9 @@ class RestaurantController extends GetxController {
     if (oldIndex < newIndex) {
       newIndex -= 1;
     }
-    final image = images.removeAt(oldIndex);
-    images.insert(newIndex, image);
-
-    if (oldIndex < cloudinaryImages.length &&
-        newIndex < cloudinaryImages.length) {
-      final cloudinaryImage = cloudinaryImages.removeAt(oldIndex);
-      cloudinaryImages.insert(newIndex, cloudinaryImage);
-    }
+    final item = images.removeAt(oldIndex);
+    images.insert(newIndex, item);
+    showCustomSnackbar('نجاح', 'تم إعادة ترتيب الصور بنجاح');
   }
 
   Future<void> saveRestaurant() async {
@@ -768,7 +578,7 @@ class RestaurantController extends GetxController {
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) {
-        Get.snackbar('خطأ', 'يجب تسجيل الدخول أولاً');
+        showCustomSnackbar('خطأ', 'يجب تسجيل الدخول أولاً');
         return;
       }
 
@@ -796,7 +606,7 @@ class RestaurantController extends GetxController {
           uploadProgress.value = (i + 1) / images.length;
         }
       } catch (e) {
-        showErrorSnackbar('فشل في رفع بعض الصور');
+        showCustomSnackbar('فشل', 'في رفع بعض الصور');
         return;
       } finally {
         isUploadingImages.value = false;
@@ -876,10 +686,10 @@ class RestaurantController extends GetxController {
         },
       );
 
-      Get.snackbar('نجاح', 'تم حفظ معلومات المطعم بنجاح');
+      showCustomSnackbar('نجاح', 'تم حفظ معلومات المطعم بنجاح');
       Get.offAllNamed('/home');
     } catch (e) {
-      showErrorSnackbar('حدث خطأ أثناء حفظ معلومات المطعم');
+      showCustomSnackbar('خطأ', 'حدث خطأ أثناء حفظ معلومات المطعم');
     } finally {
       isLoading.value = false;
     }
@@ -890,7 +700,7 @@ class RestaurantController extends GetxController {
       // التحقق من تفعيل خدمة الموقع
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
-        showErrorSnackbar('خدمة الموقع غير مفعّلة. يرجى تفعيل GPS');
+        showCustomSnackbar('خدمة الموقع غير مفعّلة', 'يرجى تفعيل GPS');
         return null;
       }
 
@@ -899,14 +709,15 @@ class RestaurantController extends GetxController {
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) {
-          showErrorSnackbar('تم رفض صلاحية الوصول للموقع');
+          showCustomSnackbar(
+              'تم رفض صلاحية الوصول للموقع', 'فعّل GPS وحاول مرة أخرى');
           return null;
         }
       }
 
       if (permission == LocationPermission.deniedForever) {
-        showErrorSnackbar(
-            'صلاحية الوصول مرفوضة نهائيًا. يرجى تفعيلها من إعدادات الجهاز');
+        showCustomSnackbar(
+            'صلاحية الوصول مرفوضة نهائيًا', 'يرجى تفعيلها من إعدادات الجهاز');
         return null;
       }
 
@@ -916,16 +727,17 @@ class RestaurantController extends GetxController {
         timeLimit: const Duration(seconds: 5),
       );
     } on TimeoutException {
-      showErrorSnackbar('انتهت مهلة تحديد الموقع. يرجى المحاولة مرة أخرى');
+      showCustomSnackbar('انتهت مهلة تحديد الموقع', 'يرجى المحاولة مرة أخرى');
       return null;
     } catch (e) {
       print('Error getting location: $e');
       if (e is LocationServiceDisabledException) {
-        showErrorSnackbar('خدمة الموقع غير مفعّلة. فعّل GPS وحاول مرة أخرى.');
+        showCustomSnackbar('خدمة الموقع غير مفعّلة', 'فعّل GPS وحاول مرة أخرى');
       } else if (e is PermissionDeniedException) {
-        showErrorSnackbar('تم رفض صلاحية الموقع. فعّل الصلاحية من الإعدادات.');
+        showCustomSnackbar(
+            'تم رفض صلاحية الموقع', 'فعّل الصلاحية من الإعدادات');
       } else {
-        showErrorSnackbar('حدث خطأ أثناء تحديد الموقع: ${e.toString()}');
+        showCustomSnackbar('حدث خطأ أثناء تحديد الموقع', '${e.toString()}');
       }
       return null;
     }
@@ -934,7 +746,7 @@ class RestaurantController extends GetxController {
   Future<void> updateCurrentLocation() async {
     try {
       if (!isMapReady.value || mapController == null) {
-        showErrorSnackbar('الخريطة لم تُحمّل بعد. الرجاء الانتظار...');
+        showCustomSnackbar('الخريطة لم تُحمّل بعد', 'الرجاء الانتظار...');
         return;
       }
 
@@ -978,22 +790,19 @@ class RestaurantController extends GetxController {
       selectedLongitude.value = position.longitude;
 
       // إظهار رسالة نجاح
-      Get.snackbar(
+      showCustomSnackbar(
         'الموقع',
         'تم تحديد موقعك الحالي',
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.green,
-        colorText: Colors.white,
-        duration: const Duration(seconds: 2),
       );
     } catch (e) {
       print('Error updating location: $e');
       if (e is LocationServiceDisabledException) {
-        showErrorSnackbar('خدمة الموقع غير مفعّلة. فعّل GPS وحاول مرة أخرى.');
+        showCustomSnackbar('خدمة الموقع غير مفعّلة', 'فعّل GPS وحاول مرة أخرى');
       } else if (e is PermissionDeniedException) {
-        showErrorSnackbar('تم رفض صلاحية الموقع. فعّل الصلاحية من الإعدادات.');
+        showCustomSnackbar(
+            'تم رفض صلاحية الموقع', 'فعّل الصلاحية من الإعدادات');
       } else {
-        showErrorSnackbar('حدث خطأ أثناء تحديث الموقع: ${e.toString()}');
+        showCustomSnackbar('حدث خطأ أثناء تحديث الموقع', '${e.toString()}');
       }
     }
   }
@@ -1048,7 +857,7 @@ class RestaurantController extends GetxController {
 
   void goToNextStep() {
     if (currentStep.value == 1 && !isPhoneVerified.value) {
-      Get.snackbar('تحذير', 'يرجى التحقق من رقم الهاتف أولاً');
+      showCustomSnackbar('تحذير', 'يرجى التحقق من رقم الهاتف أولاً');
       return;
     }
     currentStep.value++;
@@ -1096,30 +905,161 @@ class RestaurantController extends GetxController {
         throw Exception('فشل رفع جميع الصور');
       }
 
-      Get.snackbar(
+      showCustomSnackbar(
         'نجاح',
         'تم رفع الصور بنجاح',
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.green,
-        colorText: Colors.white,
       );
     } catch (e) {
       print('Error in uploadImages: $e');
-      Get.dialog(
-        AlertDialog(
-          title: const Text('خطأ'),
-          content: const Text('فشل رفع الصور، يرجى المحاولة مجدداً'),
-          actions: [
-            TextButton(
-              onPressed: () => Get.back(),
-              child: const Text('حسناً'),
-            ),
-          ],
-        ),
+      showCustomSnackbar(
+        'خطأ',
+        'فشل رفع الصور، يرجى المحاولة مجدداً',
       );
     } finally {
       isUploadingImages.value = false;
       uploadProgress.value = 0.0;
+    }
+  }
+
+  void goToNextPage() {
+    if (currentPage.value < totalSteps.value - 1) {
+      currentPage.value++;
+      pageController.nextPage(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+    }
+  }
+
+  void goToPreviousPage() {
+    if (currentPage.value > 0) {
+      currentPage.value--;
+      pageController.previousPage(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+    }
+  }
+
+  Future<void> sendOTP() async {
+    if (phoneController.text.isEmpty) {
+      showCustomSnackbar('خطأ', 'يرجى إدخال رقم الهاتف');
+      return;
+    }
+
+    isLoading.value = true;
+    try {
+      // TODO: Implement OTP sending logic
+      await Future.delayed(const Duration(seconds: 2)); // Simulate API call
+      isPhoneVerified.value = true;
+      showCustomSnackbar(
+        'تم',
+        'تم إرسال رمز التحقق',
+      );
+    } catch (e) {
+      showCustomSnackbar(
+        'خطأ',
+        'حدث خطأ أثناء إرسال رمز التحقق',
+      );
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  Future<void> verifyOTP() async {
+    if (otpController.text.isEmpty) {
+      showCustomSnackbar('خطأ', 'يرجى إدخال رمز التحقق');
+      return;
+    }
+
+    isLoading.value = true;
+    try {
+      // TODO: Implement OTP verification logic
+      await Future.delayed(const Duration(seconds: 2)); // Simulate API call
+      isPhoneVerified.value = true;
+      showCustomSnackbar(
+        'تم',
+        'تم التحقق من رقم الهاتف بنجاح',
+      );
+    } catch (e) {
+      showCustomSnackbar(
+        'خطأ',
+        'رمز التحقق غير صحيح',
+      );
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  bool validateCurrentPage() {
+    switch (currentPage.value) {
+      case 0: // صور المطعم
+        if (logoImage.value == null || images.isEmpty) {
+          showCustomSnackbar(
+            'خطأ',
+            'يرجى اختيار صورة الشعار وصورة واحدة على الأقل من صور المطعم قبل المتابعة',
+          );
+          return false;
+        }
+        break;
+      case 1: // المعلومات الأساسية
+        if (nameController.text.trim().isEmpty) {
+          showCustomSnackbar(
+            'خطأ',
+            'يرجى إدخال اسم المطعم قبل المتابعة',
+          );
+          return false;
+        }
+        break;
+      case 2: // نوع المطعم
+        if (selectedRestaurantTypes.isEmpty) {
+          showCustomSnackbar(
+            'خطأ',
+            'يرجى اختيار نوع واحد من أنواع المطاعم على الأقل',
+          );
+          return false;
+        }
+        break;
+      case 3: // المدينة
+        if (selectedCity.value.isEmpty) {
+          showCustomSnackbar(
+            'خطأ',
+            'يرجى اختيار المدينة قبل المتابعة',
+          );
+          return false;
+        }
+        break;
+      case 4: // الموقع
+        if (selectedLatitude.value == 0.0 || selectedLongitude.value == 0.0) {
+          showCustomSnackbar(
+            'خطأ',
+            'يرجى تحديد الموقع من الخريطة قبل المتابعة',
+          );
+          return false;
+        }
+        break;
+      case 5: // رقم الهاتف
+        if (!isPhoneVerified.value) {
+          showCustomSnackbar(
+            'خطأ',
+            'يرجى توثيق رقم الهاتف قبل المتابعة',
+          );
+          return false;
+        }
+        break;
+    }
+    return true;
+  }
+
+  Future<String> _uploadImageToCloudinary(File image, String subfolder) async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      final folderName = 'restaurants/${user?.uid}/$subfolder';
+      final response = await CloudinaryService.uploadImage(image, folderName);
+      return response?.url ?? '';
+    } catch (e) {
+      print('فشل رفع الصورة: $e');
+      return '';
     }
   }
 }

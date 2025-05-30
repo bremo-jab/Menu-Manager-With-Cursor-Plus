@@ -30,83 +30,36 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+
+  # The following adds the Cupertino Icons font to your application.
+  # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.2
   get: ^4.6.6
-  firebase_core: ^2.4.0
-  firebase_auth: ^4.2.5
-  cloud_firestore: ^4.15.8
-  firebase_storage: ^11.6.9
-  firebase_messaging: ^14.7.19
-  google_sign_in: ^6.2.2
-  flutter_facebook_auth: ^6.0.4
-  shared_preferences: ^2.0.15
-  flutter_localizations:
-    sdk: flutter
-  intl: ^0.19.0
-  image_picker: ^1.0.7
-  path: ^1.8.3
-  provider: ^6.1.1
-  flutter_svg: ^2.0.9
-  cached_network_image: ^3.3.1
-  flutter_spinkit: ^5.2.0
-  url_launcher: ^6.2.2
-  share_plus: ^7.2.2
-  mobile_scanner: ^3.5.7
-  qr_flutter: ^4.1.0
-  permission_handler: ^12.0.0+1
-  permission_handler_android: ^13.0.1
-  timezone: ^0.9.2
-  connectivity_plus: ^5.0.2
-  flutter_offline: ^3.0.1
-  flutter_secure_storage: ^9.0.0
-  jwt_decoder: ^2.0.1
+  firebase_core: ^2.24.2
+  firebase_auth: ^4.15.3
+  cloud_firestore: ^4.13.6
+  google_sign_in: ^6.1.6
+  flutter_otp_text_field: ^1.1.0
   flutter_dotenv: ^5.1.0
-  http: ^1.1.2
-  dio: ^5.4.1
-  flutter_launcher_icons: ^0.13.1
-  flutter_native_splash: ^2.3.8
-  package_info_plus: ^5.0.1
-  device_info_plus: ^9.1.2
-  flutter_screenutil: ^5.9.0
-  flutter_slidable: ^3.0.1
-  flutter_staggered_animations: ^1.1.1
-  shimmer: ^3.0.0
-  flutter_animate: ^4.3.0
-  flutter_hooks: ^0.20.5
-  hooks_riverpod: ^2.4.9
-  freezed_annotation: ^2.4.1
-  json_annotation: ^4.8.1
-  retrofit: ^4.1.0
-  logger: ^2.0.2+1
-  flutter_bloc: ^8.1.6
-  equatable: ^2.0.5
-  dartz: ^0.10.1
-  get_it: ^7.7.0
-  injectable: ^2.3.2
+  intl_phone_field: ^3.2.0
+  flutter_svg: ^2.0.9
   google_fonts: ^6.1.0
-  google_maps_flutter: ^2.5.3
-  geocoding: ^3.0.0
-  network_info_plus: ^4.1.0+1
-  rxdart: ^0.27.7
-  uuid: ^4.0.0
-  lottie: ^2.7.0
-  modal_bottom_sheet: ^3.0.0-pre
-  cloudinary_public: ^0.23.1
-  geolocator: ^10.0.0
-  geolocator_android: ^4.6.2
-  reorderables: ^0.4.2
-  reorderable_grid_view: ^2.2.6
+  device_info_plus: ^9.1.1
+  package_info_plus: ^5.0.1
+  lottie: ^3.0.0
+  intl: ^0.18.0
+  connectivity_plus: ^5.0.2
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
+
+  # The "flutter_lints" package below contains a set of recommended lints to
+  # encourage good coding practices. The lint set provided by the package is
+  # activated in the `analysis_options.yaml` file located at the root of your
+  # package. See that file for information about deactivating specific lint
+  # rules and activating additional ones.
   flutter_lints: ^2.0.0
-  build_runner: ^2.4.7
-  freezed: ^2.4.5
-  json_serializable: ^6.7.1
-  retrofit_generator: ^8.0.6
-  injectable_generator: ^2.4.1
-  mockito: ^5.4.4
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -120,12 +73,9 @@ flutter:
   uses-material-design: true
 
   # To add assets to your application, add an assets section, like this:
-  assets:
-    - assets/images/
-    - assets/icons/
-    - assets/fonts/
-    - .env
-    - assets/animations/
+  # assets:
+  #   - images/a_dot_burr.jpeg
+  #   - images/a_dot_ham.jpeg
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
@@ -138,18 +88,12 @@ flutter:
   # "family" key with the font family name, and a "fonts" key with a
   # list giving the asset and other descriptors for the font. For
   # example:
-  fonts:
-    - family: Cairo
-      fonts:
-        - asset: assets/fonts/Cairo-Regular.ttf
-        - asset: assets/fonts/Cairo-Bold.ttf
-          weight: 700
-        - asset: assets/fonts/Cairo-Light.ttf
-          weight: 300
-        - asset: assets/fonts/Cairo-Medium.ttf
-          weight: 500
-        - asset: assets/fonts/Cairo-SemiBold.ttf
-          weight: 600
+  # fonts:
+  #   - family: Schyler
+  #     fonts:
+  #       - asset: fonts/Schyler-Regular.ttf
+  #       - asset: fonts/Schyler-Italic.ttf
+  #         style: italic
   #   - family: Trajan Pro
   #     fonts:
   #       - asset: fonts/TrajanPro.ttf
@@ -159,6 +103,7 @@ flutter:
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
 
-platforms:
-  windows:
-    enable: true
+  assets:
+    - assets/
+    - assets/animations/
+    - .env

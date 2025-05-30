@@ -1,0 +1,55 @@
+{
+  "project_info": {
+    "project_number": "653807348701",
+    "firebase_url": "https://barhom-menu-manager-default-rtdb.firebaseio.com",
+    "project_id": "barhom-menu-manager",
+    "storage_bucket": "barhom-menu-manager.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:653807348701:android:fbd538205f687e36b3e434",
+        "android_client_info": {
+          "package_name": "com.barhom_dev.menu_manager"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "653807348701-90is8t753hdl978ko3ma4f4opj20gff7.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.barhom_dev.menu_manager",
+            "certificate_hash": "08af9a2b8a915ee3f052285b3f687dcdba6b7a7b"
+          }
+        },
+        {
+          "client_id": "653807348701-otmrbkk7ip9a02c39l3podiojgimiv01.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBZ8QDwhSpFSND7i0iLsSZ6UyY9PZchy9U"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "653807348701-otmrbkk7ip9a02c39l3podiojgimiv01.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "653807348701-i6t1s9ksnpe48l3g21o67vrsl5s36p00.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.menuManager"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -312,16 +312,6 @@ class _GoogleRestaurantInfoViewState extends State<GoogleRestaurantInfoView> {
                               return null;
                             },
                           ),
-                          if (phoneErrorText.isNotEmpty) ...[
-                            const SizedBox(height: 8),
-                            Text(
-                              phoneErrorText,
-                              style: const TextStyle(
-                                color: Colors.red,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ],
                           SizedBox(height: spacing),
                           // حقل إدخال رقم الهاتف
                           Row(
@@ -376,6 +366,16 @@ class _GoogleRestaurantInfoViewState extends State<GoogleRestaurantInfoView> {
                               ),
                             ],
                           ),
+                          if (phoneErrorText.isNotEmpty) ...[
+                            const SizedBox(height: 8),
+                            Text(
+                              phoneErrorText,
+                              style: const TextStyle(
+                                color: Colors.red,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
                           if (errorText.isNotEmpty) ...[
                             const SizedBox(height: 8),
                             Text(

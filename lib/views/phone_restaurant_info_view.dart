@@ -244,16 +244,6 @@ class _PhoneRestaurantInfoViewState extends State<PhoneRestaurantInfoView> {
                               return null;
                             },
                           ),
-                          if (phoneErrorText.isNotEmpty) ...[
-                            const SizedBox(height: 8),
-                            Text(
-                              phoneErrorText,
-                              style: const TextStyle(
-                                color: Colors.red,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ],
                           SizedBox(height: spacing * 1.5),
                           // زر ربط حساب Google
                           Container(
@@ -294,6 +284,16 @@ class _PhoneRestaurantInfoViewState extends State<PhoneRestaurantInfoView> {
                               onPressed: isLinking ? null : _linkGoogleAccount,
                             ),
                           ),
+                          if (phoneErrorText.isNotEmpty) ...[
+                            const SizedBox(height: 8),
+                            Text(
+                              phoneErrorText,
+                              style: const TextStyle(
+                                color: Colors.red,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                     ),

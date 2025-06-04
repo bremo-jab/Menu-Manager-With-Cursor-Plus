@@ -228,6 +228,10 @@ class _PhoneRestaurantInfoViewState extends State<PhoneRestaurantInfoView> {
                                 borderSide:
                                     const BorderSide(color: Colors.white),
                               ),
+                              errorText: nameErrorText.isNotEmpty
+                                  ? nameErrorText
+                                  : null,
+                              errorStyle: const TextStyle(color: Colors.red),
                               contentPadding: EdgeInsets.symmetric(
                                 horizontal: 16,
                                 vertical: isSmallScreen ? 12 : 16,
@@ -240,6 +244,16 @@ class _PhoneRestaurantInfoViewState extends State<PhoneRestaurantInfoView> {
                               return null;
                             },
                           ),
+                          if (phoneErrorText.isNotEmpty) ...[
+                            const SizedBox(height: 8),
+                            Text(
+                              phoneErrorText,
+                              style: const TextStyle(
+                                color: Colors.red,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
                           SizedBox(height: spacing * 1.5),
                           // زر ربط حساب Google
                           Container(

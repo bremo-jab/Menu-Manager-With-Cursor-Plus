@@ -32,14 +32,19 @@ class _GoogleRestaurantInfoViewState extends State<GoogleRestaurantInfoView> {
   Future<void> _saveRestaurantInfo() async {
     if (!_formKey.currentState!.validate()) return;
 
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      Get.snackbar('خطأ', 'لم يتم العثور على المستخدم');
+      return;
+    }
+
+    if (user.phoneNumber == null) {
+      Get.snackbar('تنبيه', 'يرجى ربط رقم الهاتف قبل حفظ البيانات');
+      return;
+    }
+
     setState(() => isSaving = true);
     try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) {
-        Get.snackbar('خطأ', 'لم يتم العثور على المستخدم');
-        return;
-      }
-
       await FirebaseFirestore.instance
           .collection('restaurants')
           .doc(user.uid)

@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:menu_manager/views/login_view.dart';
 
 class GoogleRestaurantInfoView extends StatefulWidget {
   const GoogleRestaurantInfoView({super.key});
@@ -199,7 +200,7 @@ class _GoogleRestaurantInfoViewState extends State<GoogleRestaurantInfoView> {
     }
 
     try {
-      Get.offAllNamed('/login');
+      Get.offAll(() => LoginView());
     } catch (e) {
       debugPrint("خطأ أثناء الانتقال لصفحة تسجيل الدخول: $e");
       ScaffoldMessenger.of(context).showSnackBar(

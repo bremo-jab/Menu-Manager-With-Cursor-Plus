@@ -17,7 +17,7 @@ class _PhoneRestaurantInfoViewState extends State<PhoneRestaurantInfoView> {
   final _formKey = GlobalKey<FormState>();
   final nameController = TextEditingController();
   bool isSaving = false;
-  bool isLinkingGoogle = false;
+  bool isLinking = false;
 
   Future<void> _saveRestaurantInfo() async {
     if (!_formKey.currentState!.validate()) return;
@@ -52,69 +52,54 @@ class _PhoneRestaurantInfoViewState extends State<PhoneRestaurantInfoView> {
     }
   }
 
-  Future<void> _linkWithGoogle() async {
-    setState(() => isLinkingGoogle = true);
-    try {
-      final googleUser = await GoogleSignIn().signIn();
-      if (googleUser == null) return;
+  Future<void> linkWithGoogle() async {
+    setState(() => isLinking = true);
 
-      final googleAuth = await googleUser.authentication;
-      final googleCredential = GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
-        idToken: googleAuth.idToken,
+    final googleUser = await GoogleSignIn().signIn();
+    if (googleUser == null) {
+      setState(() => isLinking = false);
+      return;
+    }
+
+    final googleAuth = await googleUser.authentication;
+    final googleCredential = GoogleAuthProvider.credential(
+      accessToken: googleAuth.accessToken,
+      idToken: googleAuth.idToken,
+    );
+
+    final email = googleUser.email;
+    final signInMethods =
+        await FirebaseAuth.instance.fetchSignInMethodsForEmail(email);
+
+    if (signInMethods.contains('google.com')) {
+      // الحساب مرتبط مسبقًا، نسجل الخروج من الحساب الحالي
+      final currentPhoneCredential =
+          await FirebaseAuth.instance.currentUser?.getIdToken();
+      await FirebaseAuth.instance.signOut();
+
+      // تسجيل الدخول باستخدام Google
+      final userCredential =
+          await FirebaseAuth.instance.signInWithCredential(googleCredential);
+
+      // بعد تسجيل الدخول بنجاح، ربط رقم الهاتف بالحساب الحالي
+      // لاحظ أن عملية ربط الهاتف تحتاج إلى تنفيذ Firebase Phone Auth مسبقًا وجلب verificationId و smsCode
+      // هذا مجرد تمهيد، ويجب أن تكون البيانات موجودة
+      final verificationId = ""; // ضع verificationId هنا
+      final smsCode = ""; // ضع smsCode هنا
+
+      final phoneCredential = PhoneAuthProvider.credential(
+        verificationId: verificationId,
+        smsCode: smsCode,
       );
 
-      final currentUser = FirebaseAuth.instance.currentUser;
-      if (currentUser != null) {
-        await currentUser.linkWithCredential(googleCredential);
-        Get.snackbar('تم الربط', 'تم ربط حساب Google بنجاح');
-      }
-    } on FirebaseAuthException catch (e) {
-      if (e.code == 'credential-already-in-use') {
-        final pendingCredential = e.credential;
-        Get.defaultDialog(
-          title: 'الحساب مرتبط مسبقًا',
-          middleText:
-              'هذا البريد الإلكتروني مرتبط بحساب آخر. يرجى تسجيل الدخول بـ Google لإكمال الربط.',
-          confirm: ElevatedButton(
-            onPressed: () async {
-              try {
-                final googleUser2 = await GoogleSignIn().signIn();
-                if (googleUser2 == null) return;
-
-                final googleAuth2 = await googleUser2.authentication;
-                final newCred = GoogleAuthProvider.credential(
-                  accessToken: googleAuth2.accessToken,
-                  idToken: googleAuth2.idToken,
-                );
-
-                final result =
-                    await FirebaseAuth.instance.signInWithCredential(newCred);
-
-                if (pendingCredential != null) {
-                  await result.user!.linkWithCredential(pendingCredential);
-                }
-
-                Get.back();
-                Get.snackbar('تم الربط', 'تم ربط رقم الهاتف بالحساب بنجاح');
-                Get.offAllNamed('/dashboard');
-              } catch (e) {
-                Get.snackbar('فشل الربط', e.toString(),
-                    backgroundColor: Colors.red.shade100);
-              }
-            },
-            child: const Text('تسجيل دخول بـ Google'),
-          ),
-        );
-      } else {
-        Get.snackbar('خطأ في الربط', e.message ?? 'حدث خطأ غير متوقع');
-      }
-    } catch (e) {
-      Get.snackbar('خطأ عام', e.toString(),
-          backgroundColor: Colors.red.shade100);
-    } finally {
-      setState(() => isLinkingGoogle = false);
+      await userCredential.user?.linkWithCredential(phoneCredential);
+    } else {
+      // الحساب غير موجود مسبقًا، يمكن ربط Google مباشرة
+      await FirebaseAuth.instance.currentUser
+          ?.linkWithCredential(googleCredential);
     }
+
+    setState(() => isLinking = false);
   }
 
   Future<void> _signOut() async {
@@ -255,8 +240,7 @@ class _PhoneRestaurantInfoViewState extends State<PhoneRestaurantInfoView> {
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                               ),
-                              onPressed:
-                                  isLinkingGoogle ? null : _linkWithGoogle,
+                              onPressed: isLinking ? null : linkWithGoogle,
                             ),
                           ),
                         ],

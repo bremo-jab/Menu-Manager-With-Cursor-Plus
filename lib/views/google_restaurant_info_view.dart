@@ -130,37 +130,19 @@ class _GoogleRestaurantInfoViewState extends State<GoogleRestaurantInfoView> {
         await FirebaseAuth.instance.currentUser?.linkWithCredential(credential);
         Get.snackbar('نجاح', 'تم ربط رقم الهاتف بنجاح');
       } on FirebaseAuthException catch (e) {
-        if (e.code == 'credential-already-in-use') {
-          // إذا كان الرقم مرتبط بحساب آخر
+        if (e.code == 'provider-already-linked' ||
+            e.code == 'credential-already-in-use') {
           Get.dialog(
             AlertDialog(
-              title: const Text('رقم الهاتف مرتبط مسبقاً'),
+              title: const Text('⚠️ لا يمكن ربط هذا الحساب'),
               content: const Text(
-                  'هذا الرقم مرتبط بحساب آخر. هل تريد تسجيل الدخول باستخدام هذا الرقم؟'),
+                'رقم الهاتف أو البريد الإلكتروني الذي تحاول ربطه مرتبط مسبقًا بحساب مختلف.\n'
+                'الرجاء التواصل مع مطوّر التطبيق على الرقم: 0597351035.',
+              ),
               actions: [
                 TextButton(
                   onPressed: () => Get.back(),
-                  child: const Text('إلغاء'),
-                ),
-                TextButton(
-                  onPressed: () async {
-                    Get.back();
-                    try {
-                      // تسجيل الخروج من الحساب الحالي
-                      await FirebaseAuth.instance.signOut();
-                      // تسجيل الدخول باستخدام رقم الهاتف
-                      await FirebaseAuth.instance
-                          .signInWithCredential(credential);
-                      Get.offAllNamed('/dashboard');
-                    } catch (e) {
-                      Get.snackbar(
-                        'خطأ',
-                        'حدث خطأ أثناء تسجيل الدخول',
-                        backgroundColor: Colors.red.shade100,
-                      );
-                    }
-                  },
-                  child: const Text('تسجيل الدخول'),
+                  child: const Text('حسنًا'),
                 ),
               ],
             ),
@@ -176,17 +158,19 @@ class _GoogleRestaurantInfoViewState extends State<GoogleRestaurantInfoView> {
             codeErrorMessage = 'انتهت صلاحية رمز التحقق، يرجى طلب رمز جديد';
           });
         } else {
-          setState(() {
-            hasCodeError = true;
-            codeErrorMessage = 'حدث خطأ: ${e.message}';
-          });
+          Get.snackbar(
+            'خطأ',
+            'حدث خطأ: ${e.message}',
+            backgroundColor: Colors.red.shade100,
+          );
         }
       }
     } catch (e) {
-      setState(() {
-        hasCodeError = true;
-        codeErrorMessage = 'حدث خطأ غير متوقع: $e';
-      });
+      Get.snackbar(
+        'خطأ',
+        'حدث خطأ غير متوقع: $e',
+        backgroundColor: Colors.red.shade100,
+      );
     } finally {
       setState(() => isLinking = false);
     }

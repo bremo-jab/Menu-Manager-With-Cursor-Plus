@@ -54,54 +54,60 @@ class _PhoneRestaurantInfoViewState extends State<PhoneRestaurantInfoView> {
   }
 
   // دالة ربط حساب Google
-  Future<void> linkWithGoogle() async {
+  Future<void> _linkGoogleAccount() async {
     setState(() => isLinking = true);
+    try {
+      final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
+      if (googleUser == null) {
+        setState(() => isLinking = false);
+        return;
+      }
 
-    final googleUser = await GoogleSignIn().signIn();
-    if (googleUser == null) {
-      setState(() => isLinking = false);
-      return;
-    }
-
-    final googleAuth = await googleUser.authentication;
-    final googleCredential = GoogleAuthProvider.credential(
-      accessToken: googleAuth.accessToken,
-      idToken: googleAuth.idToken,
-    );
-
-    final email = googleUser.email;
-    final signInMethods =
-        await FirebaseAuth.instance.fetchSignInMethodsForEmail(email);
-
-    if (signInMethods.contains('google.com')) {
-      // الحساب مرتبط مسبقًا، نسجل الخروج من الحساب الحالي
-      final currentPhoneCredential =
-          await FirebaseAuth.instance.currentUser?.getIdToken();
-      await FirebaseAuth.instance.signOut();
-
-      // تسجيل الدخول باستخدام Google
-      final userCredential =
-          await FirebaseAuth.instance.signInWithCredential(googleCredential);
-
-      // بعد تسجيل الدخول بنجاح، ربط رقم الهاتف بالحساب الحالي
-      // لاحظ أن عملية ربط الهاتف تحتاج إلى تنفيذ Firebase Phone Auth مسبقًا وجلب verificationId و smsCode
-      // هذا مجرد تمهيد، ويجب أن تكون البيانات موجودة
-      final verificationId = ""; // ضع verificationId هنا
-      final smsCode = ""; // ضع smsCode هنا
-
-      final phoneCredential = PhoneAuthProvider.credential(
-        verificationId: verificationId,
-        smsCode: smsCode,
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
       );
 
-      await userCredential.user?.linkWithCredential(phoneCredential);
-    } else {
-      // الحساب غير موجود مسبقًا، يمكن ربط Google مباشرة
-      await FirebaseAuth.instance.currentUser
-          ?.linkWithCredential(googleCredential);
+      try {
+        await FirebaseAuth.instance.currentUser?.linkWithCredential(credential);
+        Get.snackbar('نجاح', 'تم ربط حساب Google بنجاح');
+      } on FirebaseAuthException catch (e) {
+        if (e.code == 'provider-already-linked' ||
+            e.code == 'credential-already-in-use') {
+          Get.dialog(
+            AlertDialog(
+              title: const Text('⚠️ لا يمكن ربط هذا الحساب'),
+              content: const Text(
+                'رقم الهاتف أو البريد الإلكتروني الذي تحاول ربطه مرتبط مسبقًا بحساب مختلف.\n'
+                'الرجاء التواصل مع مطوّر التطبيق على الرقم: 0597351035.',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Get.back(),
+                  child: const Text('حسنًا'),
+                ),
+              ],
+            ),
+          );
+        } else {
+          Get.snackbar(
+            'خطأ',
+            'حدث خطأ: ${e.message}',
+            backgroundColor: Colors.red.shade100,
+          );
+        }
+      }
+    } catch (e) {
+      Get.snackbar(
+        'خطأ',
+        'حدث خطأ غير متوقع: $e',
+        backgroundColor: Colors.red.shade100,
+      );
+    } finally {
+      setState(() => isLinking = false);
     }
-
-    setState(() => isLinking = false);
   }
 
   // دالة تسجيل الخروج
@@ -243,7 +249,7 @@ class _PhoneRestaurantInfoViewState extends State<PhoneRestaurantInfoView> {
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                               ),
-                              onPressed: isLinking ? null : linkWithGoogle,
+                              onPressed: isLinking ? null : _linkGoogleAccount,
                             ),
                           ),
                         ],

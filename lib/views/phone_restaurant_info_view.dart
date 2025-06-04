@@ -19,6 +19,22 @@ class _PhoneRestaurantInfoViewState extends State<PhoneRestaurantInfoView> {
   bool isSaving = false;
   bool isLinking = false;
 
+  Future<void> _logout() async {
+    try {
+      await GoogleSignIn().signOut();
+      await FirebaseAuth.instance.signOut();
+      Get.offAllNamed('/login');
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('حدث خطأ غير متوقع أثناء تسجيل الخروج'),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 3),
+        ),
+      );
+    }
+  }
+
   // دالة حفظ معلومات المطعم في Firestore
   Future<void> _saveRestaurantInfo() async {
     if (!_formKey.currentState!.validate()) return;
@@ -110,31 +126,6 @@ class _PhoneRestaurantInfoViewState extends State<PhoneRestaurantInfoView> {
     }
   }
 
-  // دالة تسجيل الخروج
-  Future<void> _signOut() async {
-    try {
-      // تسجيل الخروج من Firebase
-      await FirebaseAuth.instance.signOut();
-
-      // إعادة التوجيه إلى صفحة تسجيل الدخول
-      Get.offAllNamed('/login');
-    } on FirebaseAuthException catch (e) {
-      Get.snackbar(
-        'خطأ',
-        'حدث خطأ أثناء تسجيل الخروج: ${e.message}',
-        backgroundColor: Colors.red.shade100,
-        duration: const Duration(seconds: 3),
-      );
-    } catch (e) {
-      Get.snackbar(
-        'خطأ',
-        'حدث خطأ غير متوقع أثناء تسجيل الخروج',
-        backgroundColor: Colors.red.shade100,
-        duration: const Duration(seconds: 3),
-      );
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
@@ -158,7 +149,7 @@ class _PhoneRestaurantInfoViewState extends State<PhoneRestaurantInfoView> {
         actions: [
           IconButton(
             icon: const Icon(Icons.logout, color: Color(0xFF6A1B9A)),
-            onPressed: _signOut,
+            onPressed: _logout,
             tooltip: 'تسجيل الخروج',
           ),
         ],

@@ -178,29 +178,18 @@ class _GoogleRestaurantInfoViewState extends State<GoogleRestaurantInfoView> {
   }
 
   // دالة تسجيل الخروج
-  Future<void> _signOut() async {
+  Future<void> _logout() async {
     try {
-      // تسجيل الخروج من Google أولاً
       await GoogleSignIn().signOut();
-
-      // ثم تسجيل الخروج من Firebase
       await FirebaseAuth.instance.signOut();
-
-      // إعادة التوجيه إلى صفحة تسجيل الدخول
       Get.offAllNamed('/login');
-    } on FirebaseAuthException catch (e) {
-      Get.snackbar(
-        'خطأ',
-        'حدث خطأ أثناء تسجيل الخروج: ${e.message}',
-        backgroundColor: Colors.red.shade100,
-        duration: const Duration(seconds: 3),
-      );
     } catch (e) {
-      Get.snackbar(
-        'خطأ',
-        'حدث خطأ غير متوقع أثناء تسجيل الخروج',
-        backgroundColor: Colors.red.shade100,
-        duration: const Duration(seconds: 3),
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('حدث خطأ غير متوقع أثناء تسجيل الخروج'),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 3),
+        ),
       );
     }
   }
@@ -228,7 +217,7 @@ class _GoogleRestaurantInfoViewState extends State<GoogleRestaurantInfoView> {
         actions: [
           IconButton(
             icon: const Icon(Icons.logout, color: Color(0xFF6A1B9A)),
-            onPressed: _signOut,
+            onPressed: _logout,
             tooltip: 'تسجيل الخروج',
           ),
         ],

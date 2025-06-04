@@ -20,6 +20,9 @@ class _PhoneRestaurantInfoViewState extends State<PhoneRestaurantInfoView> {
   bool isSaving = false;
   bool isLinking = false;
 
+  String nameErrorText = '';
+  String phoneErrorText = '';
+
   Future<void> _logout() async {
     try {
       await GoogleSignIn().signOut();
@@ -55,26 +58,26 @@ class _PhoneRestaurantInfoViewState extends State<PhoneRestaurantInfoView> {
 
   // دالة حفظ معلومات المطعم في Firestore
   Future<void> _saveRestaurantInfo() async {
-    if (!_formKey.currentState!.validate()) return;
-
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      Get.snackbar('خطأ', 'لم يتم العثور على المستخدم');
-      return;
-    }
+    final name = nameController.text.trim();
 
-    if (user.phoneNumber == null) {
-      Get.snackbar('تنبيه', 'يرجى ربط رقم الهاتف قبل حفظ البيانات');
-      return;
-    }
+    bool nameIsValid = name.isNotEmpty;
+    bool phoneIsValid = user?.phoneNumber != null;
+
+    setState(() {
+      nameErrorText = nameIsValid ? '' : 'يرجى إدخال اسم المطعم';
+      phoneErrorText = phoneIsValid ? '' : 'يرجى ربط رقم الهاتف أولًا';
+    });
+
+    if (!nameIsValid || !phoneIsValid) return;
 
     setState(() => isSaving = true);
     try {
       await FirebaseFirestore.instance
           .collection('restaurants')
-          .doc(user.uid)
+          .doc(user!.uid)
           .set({
-        'name': nameController.text.trim(),
+        'name': name,
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
         'isProfileComplete': true,

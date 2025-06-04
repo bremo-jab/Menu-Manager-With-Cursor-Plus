@@ -181,14 +181,31 @@ class _GoogleRestaurantInfoViewState extends State<GoogleRestaurantInfoView> {
   Future<void> _logout() async {
     try {
       await GoogleSignIn().signOut();
-      await FirebaseAuth.instance.signOut();
-      Get.offAllNamed('/login');
     } catch (e) {
+      debugPrint("خطأ أثناء تسجيل الخروج من Google: $e");
+    }
+
+    try {
+      await FirebaseAuth.instance.signOut();
+    } catch (e) {
+      debugPrint("خطأ أثناء تسجيل الخروج من Firebase: $e");
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('حدث خطأ غير متوقع أثناء تسجيل الخروج'),
+          content: Text('حدث خطأ أثناء تسجيل الخروج من Firebase'),
           backgroundColor: Colors.red,
-          duration: Duration(seconds: 3),
+        ),
+      );
+      return;
+    }
+
+    try {
+      Get.offAllNamed('/login');
+    } catch (e) {
+      debugPrint("خطأ أثناء الانتقال لصفحة تسجيل الدخول: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('حدث خطأ أثناء إعادة التوجيه'),
+          backgroundColor: Colors.red,
         ),
       );
     }

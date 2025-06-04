@@ -125,12 +125,67 @@ class _GoogleRestaurantInfoViewState extends State<GoogleRestaurantInfoView> {
         smsCode: codeController.text.trim(),
       );
 
-      await FirebaseAuth.instance.currentUser?.linkWithCredential(credential);
-      Get.snackbar('نجاح', 'تم ربط رقم الهاتف بنجاح');
+      // محاولة ربط رقم الهاتف
+      try {
+        await FirebaseAuth.instance.currentUser?.linkWithCredential(credential);
+        Get.snackbar('نجاح', 'تم ربط رقم الهاتف بنجاح');
+      } on FirebaseAuthException catch (e) {
+        if (e.code == 'credential-already-in-use') {
+          // إذا كان الرقم مرتبط بحساب آخر
+          Get.dialog(
+            AlertDialog(
+              title: const Text('رقم الهاتف مرتبط مسبقاً'),
+              content: const Text(
+                  'هذا الرقم مرتبط بحساب آخر. هل تريد تسجيل الدخول باستخدام هذا الرقم؟'),
+              actions: [
+                TextButton(
+                  onPressed: () => Get.back(),
+                  child: const Text('إلغاء'),
+                ),
+                TextButton(
+                  onPressed: () async {
+                    Get.back();
+                    try {
+                      // تسجيل الخروج من الحساب الحالي
+                      await FirebaseAuth.instance.signOut();
+                      // تسجيل الدخول باستخدام رقم الهاتف
+                      await FirebaseAuth.instance
+                          .signInWithCredential(credential);
+                      Get.offAllNamed('/dashboard');
+                    } catch (e) {
+                      Get.snackbar(
+                        'خطأ',
+                        'حدث خطأ أثناء تسجيل الدخول',
+                        backgroundColor: Colors.red.shade100,
+                      );
+                    }
+                  },
+                  child: const Text('تسجيل الدخول'),
+                ),
+              ],
+            ),
+          );
+        } else if (e.code == 'invalid-verification-code') {
+          setState(() {
+            hasCodeError = true;
+            codeErrorMessage = 'رمز التحقق غير صحيح';
+          });
+        } else if (e.code == 'invalid-verification-id') {
+          setState(() {
+            hasCodeError = true;
+            codeErrorMessage = 'انتهت صلاحية رمز التحقق، يرجى طلب رمز جديد';
+          });
+        } else {
+          setState(() {
+            hasCodeError = true;
+            codeErrorMessage = 'حدث خطأ: ${e.message}';
+          });
+        }
+      }
     } catch (e) {
       setState(() {
         hasCodeError = true;
-        codeErrorMessage = 'رمز التحقق غير صالح أو منتهي';
+        codeErrorMessage = 'حدث خطأ غير متوقع: $e';
       });
     } finally {
       setState(() => isLinking = false);

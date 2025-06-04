@@ -19,6 +19,7 @@ class _PhoneRestaurantInfoViewState extends State<PhoneRestaurantInfoView> {
   bool isSaving = false;
   bool isLinking = false;
 
+  // دالة حفظ معلومات المطعم في Firestore
   Future<void> _saveRestaurantInfo() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -52,6 +53,7 @@ class _PhoneRestaurantInfoViewState extends State<PhoneRestaurantInfoView> {
     }
   }
 
+  // دالة ربط حساب Google
   Future<void> linkWithGoogle() async {
     setState(() => isLinking = true);
 
@@ -102,6 +104,7 @@ class _PhoneRestaurantInfoViewState extends State<PhoneRestaurantInfoView> {
     setState(() => isLinking = false);
   }
 
+  // دالة تسجيل الخروج
   Future<void> _signOut() async {
     try {
       await FirebaseAuth.instance.signOut();

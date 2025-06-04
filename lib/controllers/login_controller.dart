@@ -3,7 +3,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:get/get.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import '../views/restaurant_info_view.dart';
+import '../views/google_restaurant_info_view.dart';
+import '../views/phone_restaurant_info_view.dart';
 import '../controllers/restaurant_info_controller.dart';
 
 class LoginController extends GetxController {
@@ -16,129 +17,88 @@ class LoginController extends GetxController {
   final verificationId = ''.obs;
 
   Future<void> signInWithGoogle() async {
+    isLoading.value = true;
     try {
-      isLoading.value = true;
+      final googleUser = await _googleSignIn.signIn();
+      if (googleUser == null) {
+        Get.snackbar('تم الإلغاء', 'لم يتم تسجيل الدخول');
+        return;
+      }
 
-      // Trigger the authentication flow
-      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
-      if (googleUser == null) return;
-
-      // Obtain the auth details from the request
-      final GoogleSignInAuthentication googleAuth =
-          await googleUser.authentication;
-
-      // Create a new credential
+      final googleAuth = await googleUser.authentication;
       final credential = GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken,
         idToken: googleAuth.idToken,
       );
 
-      // Sign in to Firebase with the Google credential
-      final UserCredential userCredential =
-          await _auth.signInWithCredential(credential);
-      final User? user = userCredential.user;
+      final userCredential = await _auth.signInWithCredential(credential);
 
-      if (user != null) {
-        await Get.put(RestaurantInfoController()).saveLoginInfo();
-
-        // Check if user exists in Firestore
-        final userDoc =
-            await _firestore.collection('restaurants').doc(user.uid).get();
-
-        if (!userDoc.exists) {
-          // New user, navigate to restaurant info
-          Get.off(() => const RestaurantInfoView());
-        } else {
-          // Existing user, check if profile is complete
-          final userData = userDoc.data() as Map<String, dynamic>;
-          if (userData['isProfileComplete'] == true) {
-            Get.offAllNamed('/dashboard');
-          } else {
-            Get.off(() => const RestaurantInfoView());
-          }
-        }
-      }
+      // التوجيه إلى صفحة إدخال معلومات المطعم الخاصة بـ Google
+      Get.offAll(() => const GoogleRestaurantInfoView());
     } catch (e) {
-      Get.snackbar(
-        'خطأ',
-        'حدث خطأ أثناء تسجيل الدخول باستخدام Google',
-        snackPosition: SnackPosition.BOTTOM,
-      );
+      Get.snackbar('خطأ في تسجيل الدخول', e.toString());
     } finally {
       isLoading.value = false;
     }
   }
 
-  Future<void> sendOtpToPhoneNumber(String rawPhone) async {
+  Future<void> signInWithPhone(
+      String phoneNumber, Function(String) onCodeSent) async {
+    if (phoneNumber.startsWith('0')) {
+      phoneNumber = phoneNumber.substring(1);
+    }
+    if (phoneNumber.length != 9 ||
+        !RegExp(r'^[5][0-9]{8}$').hasMatch(phoneNumber)) {
+      return;
+    }
+
+    isLoading.value = true;
+    await _auth.verifyPhoneNumber(
+      phoneNumber: '+970$phoneNumber',
+      verificationCompleted: (_) {},
+      verificationFailed: (e) {
+        Get.snackbar('فشل التحقق', e.message ?? '');
+        isLoading.value = false;
+      },
+      codeSent: (verificationId, _) {
+        onCodeSent(verificationId);
+        isLoading.value = false;
+      },
+      codeAutoRetrievalTimeout: (_) {},
+    );
+  }
+
+  Future<bool> verifyPhoneAndSignIn(
+      String verificationId, String smsCode) async {
     isLoading.value = true;
     try {
-      final fullPhone = '+970$rawPhone'; // الرقم الكامل مع الكود الدولي
-      await _auth.verifyPhoneNumber(
-        phoneNumber: fullPhone,
-        verificationCompleted: (PhoneAuthCredential credential) {
-          // Auto-retrieval
-        },
-        verificationFailed: (FirebaseAuthException e) {
-          Get.snackbar("خطأ", "فشل التحقق: ${e.message}");
-        },
-        codeSent: (String verificationId, int? resendToken) {
-          this.verificationId.value = verificationId;
-          Get.snackbar("تم الإرسال", "تم إرسال رمز التحقق بنجاح");
-        },
-        codeAutoRetrievalTimeout: (String verificationId) {
-          this.verificationId.value = verificationId;
-        },
+      final credential = PhoneAuthProvider.credential(
+        verificationId: verificationId,
+        smsCode: smsCode,
       );
+      await _auth.signInWithCredential(credential);
+      return true;
     } catch (e) {
-      Get.snackbar("خطأ", "حدث خطأ أثناء إرسال رمز التحقق");
+      return false;
     } finally {
       isLoading.value = false;
     }
   }
 
-  Future<void> verifyOtp(String otp) async {
-    try {
-      isLoading.value = true;
-
-      final credential = PhoneAuthProvider.credential(
-        verificationId: verificationId.value,
-        smsCode: otp,
-      );
-
-      final UserCredential userCredential =
-          await _auth.signInWithCredential(credential);
-      final User? user = userCredential.user;
-
-      if (user != null) {
-        // تسجيل معلومات الدخول
-        await logLoginInfo('+970${phoneNumber.value}');
-
-        // Check if user exists in Firestore
-        final userDoc =
-            await _firestore.collection('restaurants').doc(user.uid).get();
-
-        if (!userDoc.exists) {
-          // New user, navigate to restaurant info
-          Get.off(() => const RestaurantInfoView());
-        } else {
-          // Existing user, check if profile is complete
-          final userData = userDoc.data() as Map<String, dynamic>;
-          if (userData['isProfileComplete'] == true) {
-            Get.offAllNamed('/dashboard');
-          } else {
-            Get.off(() => const RestaurantInfoView());
-          }
-        }
-      }
-    } catch (e) {
-      Get.snackbar(
-        'خطأ',
-        'فشل التحقق من رمز OTP',
-        snackPosition: SnackPosition.BOTTOM,
-      );
-    } finally {
-      isLoading.value = false;
+  String formatPhoneNumber(String phone) {
+    phone = phone.trim().replaceAll(RegExp(r'[^0-9]'), '');
+    if (phone.startsWith('0')) {
+      phone = phone.substring(1);
     }
+    return '+970$phone';
+  }
+
+  bool isValidPhoneNumber(String phone) {
+    final cleaned = phone.trim().replaceAll(RegExp(r'[^0-9]'), '');
+    if (cleaned.startsWith('0')) {
+      return cleaned.length == 10 && cleaned.startsWith('05');
+    }
+    return cleaned.length == 9 && cleaned.startsWith('5');
   }
 
   Future<void> logLoginInfo(String phoneNumber) async {

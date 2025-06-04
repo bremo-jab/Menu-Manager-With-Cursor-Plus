@@ -25,7 +25,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
           onPressed: () async {
             try {
               await FirebaseAuth.instance.signOut();
-              Get.offAll(() => const LoginView());
+              Get.offAll(() => LoginView());
             } catch (e) {
               Get.snackbar(
                 'خطأ',

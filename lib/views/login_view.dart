@@ -1,48 +1,188 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:lottie/lottie.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../controllers/login_controller.dart';
+import '../views/phone_restaurant_info_view.dart';
 
 class LoginView extends StatelessWidget {
-  const LoginView({super.key});
+  LoginView({super.key});
 
-  void _showPhoneNumberDialog(
-      BuildContext context, LoginController controller) {
+  final controller = Get.put(LoginController());
+  final phoneController = TextEditingController();
+  final codeController = TextEditingController();
+  String verificationId = '';
+  bool isCodeSent = false;
+  bool hasError = false;
+  bool hasCodeError = false;
+  String errorMessage = '';
+  String codeErrorMessage = '';
+  final RxBool isDialogOpen = false.obs;
+
+  void showPhoneLoginDialog(BuildContext context) {
+    isDialogOpen.value = true;
     final phoneController = TextEditingController();
-    Get.dialog(
-      AlertDialog(
-        title: const Text('أدخل رقم الهاتف'),
-        content: TextField(
-          controller: phoneController,
-          keyboardType: TextInputType.phone,
-          decoration: const InputDecoration(
-            labelText: 'رقم الهاتف',
-            hintText: 'مثال: 597351035',
-            border: OutlineInputBorder(),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Get.back(),
-            child: const Text('إلغاء'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              if (phoneController.text.isNotEmpty) {
-                Get.back();
-                controller.sendOtpToPhoneNumber(phoneController.text);
-              }
-            },
-            child: const Text('إرسال رمز التحقق'),
-          ),
-        ],
+    final codeController = TextEditingController();
+    bool isCodeSent = false;
+    bool hasError = false;
+    bool hasCodeError = false;
+    String errorMessage = '';
+    String codeErrorMessage = '';
+    String verificationId = '';
+    bool isDialogLoading = false;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setState) {
+          print('🟢 تم تحميل الديالوج المعدل');
+          return AlertDialog(
+            backgroundColor: Colors.white,
+            elevation: 8,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+              side: BorderSide(color: Colors.grey.shade300, width: 1.5),
+            ),
+            title: const Text(
+              'تسجيل الدخول برقم الهاتف',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            content: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: phoneController,
+                          keyboardType: TextInputType.phone,
+                          textAlign: TextAlign.left,
+                          textDirection: TextDirection.ltr,
+                          decoration: const InputDecoration(
+                            hintText: '05*******',
+                            labelText: 'رقم الهاتف',
+                            hintTextDirection: TextDirection.ltr,
+                          ),
+                        ),
+                      ),
+                      const Padding(
+                        padding: EdgeInsets.only(left: 8.0),
+                        child: Text('+970', style: TextStyle(fontSize: 16)),
+                      ),
+                    ],
+                  ),
+                  if (hasError) const SizedBox(height: 8),
+                  if (hasError)
+                    Text(
+                      errorMessage,
+                      style: const TextStyle(color: Colors.red, fontSize: 12),
+                    ),
+                  if (isCodeSent)
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: 10),
+                        TextField(
+                          controller: codeController,
+                          keyboardType: TextInputType.number,
+                          decoration:
+                              const InputDecoration(labelText: 'رمز التحقق'),
+                        ),
+                        if (hasCodeError) const SizedBox(height: 4),
+                        if (hasCodeError)
+                          Text(
+                            codeErrorMessage,
+                            style: const TextStyle(
+                                color: Colors.red, fontSize: 12),
+                          ),
+                      ],
+                    ),
+                ],
+              ),
+            ),
+            actionsAlignment: MainAxisAlignment.center,
+            actionsPadding:
+                const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            actions: [
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.deepPurple,
+                  foregroundColor: Colors.white,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                ),
+                onPressed: isDialogLoading
+                    ? null
+                    : () {
+                        setState(() => isDialogLoading = true);
+                        if (!isCodeSent) {
+                          String phone = phoneController.text.trim();
+                          if (phone.startsWith('0')) phone = phone.substring(1);
+
+                          if (phone.length != 9 ||
+                              !RegExp(r'^[5][0-9]{8}$').hasMatch(phone)) {
+                            setState(() {
+                              hasError = true;
+                              errorMessage = 'تحقق من صحة رقم الهاتف.';
+                              isDialogLoading = false;
+                            });
+                            return;
+                          }
+
+                          controller.signInWithPhone(phone, (id) {
+                            setState(() {
+                              verificationId = id;
+                              isCodeSent = true;
+                              hasError = false;
+                              errorMessage = '';
+                              isDialogLoading = false;
+                            });
+                          });
+                        } else {
+                          controller
+                              .verifyPhoneAndSignIn(
+                            verificationId,
+                            codeController.text.trim(),
+                          )
+                              .then((success) {
+                            setState(() {
+                              isDialogLoading = false;
+                            });
+                            if (success) {
+                              Get.offAll(() => const PhoneRestaurantInfoView());
+                            } else {
+                              setState(() {
+                                hasCodeError = true;
+                                codeErrorMessage =
+                                    'رمز التحقق المدخل غير صحيح. حاول مرة أخرى';
+                              });
+                            }
+                          });
+                        }
+                      },
+                child: isDialogLoading
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2))
+                    : Text(isCodeSent ? 'تسجيل الدخول' : 'إرسال الكود'),
+              ),
+            ],
+          );
+        },
       ),
-    );
+    ).then((_) {
+      isDialogOpen.value = false;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    final controller = Get.put(LoginController());
     final size = MediaQuery.of(context).size;
     final isSmallScreen = size.height < 700;
 
@@ -119,7 +259,8 @@ class LoginView extends StatelessWidget {
                       SizedBox(height: isSmallScreen ? 30 : 60),
 
                       // Loading Animation or Login Buttons
-                      Obx(() => controller.isLoading.value
+                      Obx(() => controller.isLoading.value &&
+                              !isDialogOpen.value
                           ? Center(
                               child: Lottie.asset(
                                 'assets/animations/login-loading.json',
@@ -246,8 +387,8 @@ class LoginView extends StatelessWidget {
                                     ),
                                   ),
                                   child: OutlinedButton(
-                                    onPressed: () => _showPhoneNumberDialog(
-                                        context, controller),
+                                    onPressed: () =>
+                                        showPhoneLoginDialog(context),
                                     style: OutlinedButton.styleFrom(
                                       side: BorderSide.none,
                                       shape: RoundedRectangleBorder(

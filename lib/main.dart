@@ -5,35 +5,60 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'views/login_view.dart';
-import 'views/restaurant_info_view.dart';
+import 'views/google_restaurant_info_view.dart';
+import 'views/phone_restaurant_info_view.dart';
 import 'views/dashboard_view.dart';
+import 'app.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await dotenv.load(fileName: ".env");
-  runApp(const MyApp());
+  await Firebase.initializeApp();
+
+  final user = FirebaseAuth.instance.currentUser;
+  final providers = user?.providerData.map((e) => e.providerId).toList() ?? [];
+
+  Widget initialView;
+  if (user == null) {
+    initialView = LoginView();
+  } else if (providers.contains('google.com')) {
+    initialView = GoogleRestaurantInfoView();
+  } else {
+    initialView = PhoneRestaurantInfoView();
+  }
+
+  runApp(
+    GetMaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: initialView,
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
   Future<FirebaseApp> _initFirebase() async {
-    print('Firebase apps count: ${Firebase.apps.length}');
-    if (Firebase.apps.isEmpty) {
-      print('Initializing Firebase...');
-      return await Firebase.initializeApp(
-        options: FirebaseOptions(
-          apiKey: dotenv.env['FIREBASE_API_KEY'] ?? '',
-          appId: dotenv.env['FIREBASE_APP_ID'] ?? '',
-          messagingSenderId: dotenv.env['FIREBASE_MESSAGING_SENDER_ID'] ?? '',
-          projectId: dotenv.env['FIREBASE_PROJECT_ID'] ?? '',
-          authDomain: dotenv.env['FIREBASE_AUTH_DOMAIN'] ?? '',
-          storageBucket: dotenv.env['FIREBASE_STORAGE_BUCKET'] ?? '',
-        ),
-      );
+    try {
+      print('Firebase apps count: ${Firebase.apps.length}');
+      if (Firebase.apps.isEmpty) {
+        print('Initializing Firebase...');
+        return await Firebase.initializeApp(
+          options: FirebaseOptions(
+            apiKey: dotenv.env['FIREBASE_API_KEY'] ?? '',
+            appId: dotenv.env['FIREBASE_APP_ID'] ?? '',
+            messagingSenderId: dotenv.env['FIREBASE_MESSAGING_SENDER_ID'] ?? '',
+            projectId: dotenv.env['FIREBASE_PROJECT_ID'] ?? '',
+            authDomain: dotenv.env['FIREBASE_AUTH_DOMAIN'] ?? '',
+            storageBucket: dotenv.env['FIREBASE_STORAGE_BUCKET'] ?? '',
+          ),
+        );
+      }
+      print('Firebase already initialized');
+      return Firebase.app();
+    } catch (e) {
+      print('❌ خطأ أثناء تهيئة Firebase: $e');
+      rethrow;
     }
-    print('Firebase already initialized');
-    return Firebase.app();
   }
 
   @override
@@ -47,14 +72,21 @@ class MyApp extends StatelessWidget {
             theme: ThemeData(
               primarySwatch: Colors.blue,
               fontFamily: 'Cairo',
+              textTheme: const TextTheme(
+                bodyLarge: TextStyle(fontFamily: 'Cairo'),
+                bodyMedium: TextStyle(fontFamily: 'Cairo'),
+                titleLarge: TextStyle(fontFamily: 'Cairo'),
+              ),
             ),
-            home: const AuthWrapper(),
+            locale: const Locale('ar', 'SA'),
+            textDirection: TextDirection.rtl,
+            home: LoginView(),
             debugShowCheckedModeBanner: false,
             getPages: [
-              GetPage(name: '/login', page: () => const LoginView()),
+              GetPage(name: '/login', page: () => LoginView()),
               GetPage(
                   name: '/restaurant-info',
-                  page: () => const RestaurantInfoView()),
+                  page: () => const GoogleRestaurantInfoView()),
               GetPage(name: '/dashboard', page: () => const DashboardView()),
             ],
           );
@@ -107,12 +139,12 @@ class AuthWrapper extends StatelessWidget {
                   return const DashboardView();
                 }
               }
-              return const RestaurantInfoView();
+              return const GoogleRestaurantInfoView();
             },
           );
         }
 
-        return const LoginView();
+        return LoginView();
       },
     );
   }

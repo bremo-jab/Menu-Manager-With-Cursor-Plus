@@ -245,6 +245,17 @@ class RestaurantInfoController extends GetxController {
         return;
       }
 
+      // التحقق من الاتصال بالإنترنت
+      final connectivityResult = await Connectivity().checkConnectivity();
+      if (connectivityResult == ConnectivityResult.none) {
+        Get.snackbar(
+          'خطأ',
+          'لا يوجد اتصال بالإنترنت',
+          snackPosition: SnackPosition.BOTTOM,
+        );
+        return;
+      }
+
       // حفظ معلومات المطعم
       await FirebaseFirestore.instance
           .collection('restaurants')
@@ -260,8 +271,7 @@ class RestaurantInfoController extends GetxController {
       print('✅ تم حفظ معلومات المطعم بنجاح');
 
       // الانتقال إلى صفحة الداشبورد
-      await Future.delayed(
-          const Duration(milliseconds: 500)); // إضافة تأخير قصير
+      await Future.delayed(const Duration(milliseconds: 500));
       await Get.offAllNamed('/dashboard', predicate: (route) => false);
     } catch (e) {
       print('❌ خطأ أثناء حفظ معلومات المطعم: $e');

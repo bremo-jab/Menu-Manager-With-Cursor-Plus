@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 class GoogleRestaurantInfoView extends StatefulWidget {
   const GoogleRestaurantInfoView({super.key});
@@ -179,13 +180,27 @@ class _GoogleRestaurantInfoViewState extends State<GoogleRestaurantInfoView> {
   // دالة تسجيل الخروج
   Future<void> _signOut() async {
     try {
+      // تسجيل الخروج من Google أولاً
+      await GoogleSignIn().signOut();
+
+      // ثم تسجيل الخروج من Firebase
       await FirebaseAuth.instance.signOut();
+
+      // إعادة التوجيه إلى صفحة تسجيل الدخول
       Get.offAllNamed('/login');
+    } on FirebaseAuthException catch (e) {
+      Get.snackbar(
+        'خطأ',
+        'حدث خطأ أثناء تسجيل الخروج: ${e.message}',
+        backgroundColor: Colors.red.shade100,
+        duration: const Duration(seconds: 3),
+      );
     } catch (e) {
       Get.snackbar(
         'خطأ',
-        'حدث خطأ أثناء تسجيل الخروج',
+        'حدث خطأ غير متوقع أثناء تسجيل الخروج',
         backgroundColor: Colors.red.shade100,
+        duration: const Duration(seconds: 3),
       );
     }
   }

@@ -113,13 +113,24 @@ class _PhoneRestaurantInfoViewState extends State<PhoneRestaurantInfoView> {
   // دالة تسجيل الخروج
   Future<void> _signOut() async {
     try {
+      // تسجيل الخروج من Firebase
       await FirebaseAuth.instance.signOut();
+
+      // إعادة التوجيه إلى صفحة تسجيل الدخول
       Get.offAllNamed('/login');
+    } on FirebaseAuthException catch (e) {
+      Get.snackbar(
+        'خطأ',
+        'حدث خطأ أثناء تسجيل الخروج: ${e.message}',
+        backgroundColor: Colors.red.shade100,
+        duration: const Duration(seconds: 3),
+      );
     } catch (e) {
       Get.snackbar(
         'خطأ',
-        'حدث خطأ أثناء تسجيل الخروج',
+        'حدث خطأ غير متوقع أثناء تسجيل الخروج',
         backgroundColor: Colors.red.shade100,
+        duration: const Duration(seconds: 3),
       );
     }
   }

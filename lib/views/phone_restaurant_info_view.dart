@@ -264,19 +264,25 @@ class _PhoneRestaurantInfoViewState extends State<PhoneRestaurantInfoView> {
                               icon: Icon(
                                 Icons.link,
                                 size: isSmallScreen ? 24 : 28,
-                                color: const Color(0xFF6A1B9A),
+                                color: phoneErrorText.isNotEmpty
+                                    ? Colors.red
+                                    : const Color(0xFF6A1B9A),
                               ),
                               label: Text(
                                 'ربط حساب Google',
                                 style: TextStyle(
                                   fontSize: isSmallScreen ? 16 : 18,
-                                  color: const Color(0xFF6A1B9A),
+                                  color: phoneErrorText.isNotEmpty
+                                      ? Colors.red
+                                      : const Color(0xFF6A1B9A),
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
                               style: OutlinedButton.styleFrom(
-                                side:
-                                    const BorderSide(color: Color(0xFF6A1B9A)),
+                                side: BorderSide(
+                                    color: phoneErrorText.isNotEmpty
+                                        ? Colors.red
+                                        : const Color(0xFF6A1B9A)),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),
                                 ),

@@ -349,13 +349,17 @@ class _GoogleRestaurantInfoViewState extends State<GoogleRestaurantInfoView> {
                                         color: Colors.white70),
                                     enabledBorder: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(12),
-                                      borderSide: const BorderSide(
-                                          color: Colors.white30),
+                                      borderSide: BorderSide(
+                                          color: phoneErrorText.isNotEmpty
+                                              ? Colors.red
+                                              : Colors.white30),
                                     ),
                                     focusedBorder: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(12),
-                                      borderSide:
-                                          const BorderSide(color: Colors.white),
+                                      borderSide: BorderSide(
+                                          color: phoneErrorText.isNotEmpty
+                                              ? Colors.red
+                                              : Colors.white),
                                     ),
                                     contentPadding: EdgeInsets.symmetric(
                                       horizontal: 16,

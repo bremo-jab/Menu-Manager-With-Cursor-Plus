@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:lottie/lottie.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import '../controllers/login_controller.dart';
 import '../views/phone_restaurant_info_view.dart';
 

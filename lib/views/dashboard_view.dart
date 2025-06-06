@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../controllers/dashboard_controller.dart';
 import '../widgets/custom_app_bar.dart';
 
 class DashboardController extends GetxController {

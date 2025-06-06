@@ -30,6 +30,7 @@ class _GoogleRestaurantInfoViewState extends State<GoogleRestaurantInfoView> {
 
   String nameErrorText = '';
   String phoneErrorText = '';
+  bool isPhoneVerified = false;
 
   // دالة حفظ معلومات المطعم في Firestore
   Future<void> _saveRestaurantInfo() async {
@@ -138,7 +139,10 @@ class _GoogleRestaurantInfoViewState extends State<GoogleRestaurantInfoView> {
       // محاولة ربط رقم الهاتف
       try {
         await FirebaseAuth.instance.currentUser?.linkWithCredential(credential);
-        Get.snackbar('نجاح', 'تم ربط رقم الهاتف بنجاح');
+        setState(() {
+          isPhoneVerified = true;
+          phoneErrorText = '';
+        });
       } on FirebaseAuthException catch (e) {
         if (e.code == 'provider-already-linked' ||
             e.code == 'credential-already-in-use') {
@@ -249,14 +253,14 @@ class _GoogleRestaurantInfoViewState extends State<GoogleRestaurantInfoView> {
         ],
       ),
       body: Container(
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              const Color(0xFF6A1B9A),
-              const Color(0xFF4527A0),
-              const Color(0xFF283593),
+              Color(0xFF6A1B9A),
+              Color(0xFF4527A0),
+              Color(0xFF283593),
             ],
           ),
         ),
@@ -277,6 +281,11 @@ class _GoogleRestaurantInfoViewState extends State<GoogleRestaurantInfoView> {
                           TextFormField(
                             controller: nameController,
                             style: const TextStyle(color: Colors.white),
+                            onTap: () {
+                              setState(() {
+                                nameErrorText = '';
+                              });
+                            },
                             decoration: InputDecoration(
                               labelText: 'اسم المطعم',
                               labelStyle:
@@ -335,32 +344,41 @@ class _GoogleRestaurantInfoViewState extends State<GoogleRestaurantInfoView> {
                               const SizedBox(width: 8),
                               Expanded(
                                 child: TextFormField(
-                                  controller: phoneController,
+                                  onTap: () {
+                                    setState(() {
+                                      phoneErrorText = '';
+                                    });
+                                  },
                                   keyboardType: TextInputType.phone,
                                   style: const TextStyle(color: Colors.white),
                                   decoration: InputDecoration(
                                     labelText: 'رقم الهاتف',
                                     labelStyle:
                                         const TextStyle(color: Colors.white70),
-                                    hintText: '59*******',
+                                    hintText: 'أدخل رقم الهاتف...',
                                     hintStyle: TextStyle(
                                         color: Colors.white.withOpacity(0.5)),
                                     prefixIcon: const Icon(Icons.phone,
                                         color: Colors.white70),
+                                    suffixIcon: isPhoneVerified
+                                        ? const Icon(Icons.check_circle,
+                                            color: Colors.green)
+                                        : null,
                                     enabledBorder: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(12),
-                                      borderSide: BorderSide(
-                                          color: phoneErrorText.isNotEmpty
-                                              ? Colors.red
-                                              : Colors.white30),
+                                      borderSide: const BorderSide(
+                                          color: Colors.white30),
                                     ),
                                     focusedBorder: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(12),
-                                      borderSide: BorderSide(
-                                          color: phoneErrorText.isNotEmpty
-                                              ? Colors.red
-                                              : Colors.white),
+                                      borderSide:
+                                          const BorderSide(color: Colors.white),
                                     ),
+                                    errorText: phoneErrorText.isNotEmpty
+                                        ? phoneErrorText
+                                        : null,
+                                    errorStyle:
+                                        const TextStyle(color: Colors.red),
                                     contentPadding: EdgeInsets.symmetric(
                                       horizontal: 16,
                                       vertical: isSmallScreen ? 12 : 16,
@@ -370,16 +388,6 @@ class _GoogleRestaurantInfoViewState extends State<GoogleRestaurantInfoView> {
                               ),
                             ],
                           ),
-                          if (phoneErrorText.isNotEmpty) ...[
-                            const SizedBox(height: 8),
-                            Text(
-                              phoneErrorText,
-                              style: const TextStyle(
-                                color: Colors.red,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ],
                           if (errorText.isNotEmpty) ...[
                             const SizedBox(height: 8),
                             Text(
@@ -534,7 +542,7 @@ class _GoogleRestaurantInfoViewState extends State<GoogleRestaurantInfoView> {
                 padding: EdgeInsets.all(padding),
                 decoration: BoxDecoration(
                   color: Colors.white.withOpacity(0.1),
-                  border: Border(
+                  border: const Border(
                     top: BorderSide(color: Colors.white30),
                   ),
                 ),

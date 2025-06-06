@@ -181,14 +181,14 @@ class _PhoneRestaurantInfoViewState extends State<PhoneRestaurantInfoView> {
         ],
       ),
       body: Container(
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              const Color(0xFF6A1B9A),
-              const Color(0xFF4527A0),
-              const Color(0xFF283593),
+              Color(0xFF6A1B9A),
+              Color(0xFF4527A0),
+              Color(0xFF283593),
             ],
           ),
         ),
@@ -312,7 +312,7 @@ class _PhoneRestaurantInfoViewState extends State<PhoneRestaurantInfoView> {
                 padding: EdgeInsets.all(padding),
                 decoration: BoxDecoration(
                   color: Colors.white.withOpacity(0.1),
-                  border: Border(
+                  border: const Border(
                     top: BorderSide(color: Colors.white30),
                   ),
                 ),

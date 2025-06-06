@@ -21,9 +21,9 @@ void main() async {
   if (user == null) {
     initialView = LoginView();
   } else if (providers.contains('google.com')) {
-    initialView = GoogleRestaurantInfoView();
+    initialView = const GoogleRestaurantInfoView();
   } else {
-    initialView = PhoneRestaurantInfoView();
+    initialView = const PhoneRestaurantInfoView();
   }
 
   runApp(
